@@ -91,14 +91,18 @@ def load_json(path, default):
 
 shelters = load_json(DATA_FILE, [])
 instructions = load_json(INSTRUCTIONS_FILE, [])
+INSTRUCTION_TARGETS = ["住民", "防災課", "災害対策本部", "消防", "道路管理課", "避難所"]
+INSTRUCTION_URGENCIES = ["高", "中", "低"]
+INSTRUCTION_STATUSES = ["発令中", "対応中", "完了", "解除"]
 
 def save_instructions():
     """指示ボードのデータをファイルに保存する"""
     try:
         with open(INSTRUCTIONS_FILE, 'w', encoding='utf-8') as f:
             json.dump(instructions, f, ensure_ascii=False, indent=2)
+        return True
     except Exception:
-        pass
+        return False
 # ────────────────────────────────
 
 # ────────────────────────────────
@@ -239,7 +243,11 @@ def get_weather_warnings():
 # トップページ：templates/index.html を返す（住民向け指示も表示する）
 @app.route('/')
 def index():
-    resident_notices = [i for i in instructions if i.get('target') == '住民']
+    resident_notices = [
+        item for item in instructions
+        if item.get('target') == '住民'
+        and item.get('status', '発令中') not in ('完了', '解除')
+    ]
     return render_template('index.html', resident_notices=resident_notices)
 
 # ログインページ
@@ -328,11 +336,87 @@ def all_shelters():
 
 
 # 指示ボード：住民向けの指示を一覧で確認する
-@app.route('/board')
+@app.route('/board', methods=['GET', 'POST'])
 @login_required
 def board():
-    resident_instructions = [i for i in instructions if i.get('target') == '住民']
-    return render_template('board.html', instructions=resident_instructions)
+    error_message = None
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'create':
+            target = request.form.get('target', '').strip()
+            content = request.form.get('content', '').strip()
+            urgency = request.form.get('urgency', '').strip()
+
+            if target not in INSTRUCTION_TARGETS:
+                error_message = '発信先を選択してください。'
+            elif not content:
+                error_message = '指示・発信内容を入力してください。'
+            elif urgency not in INSTRUCTION_URGENCIES:
+                error_message = '緊急度を選択してください。'
+            else:
+                numeric_ids = [
+                    int(item['id']) for item in instructions
+                    if str(item.get('id', '')).isdigit()
+                ]
+                now = get_japan_time()
+                new_instruction = {
+                    'id': max(numeric_ids, default=0) + 1,
+                    'target': target,
+                    'district': request.form.get('district', '').strip(),
+                    'content': content,
+                    'shelter': request.form.get('shelter', '').strip(),
+                    'urgency': urgency,
+                    'status': '発令中',
+                    'created_at': now,
+                    'updated_at': now
+                }
+                instructions.insert(0, new_instruction)
+                if save_instructions():
+                    return redirect(url_for('board', notice='created'))
+                instructions.remove(new_instruction)
+                error_message = '発信を保存できませんでした。時間をおいて再度お試しください。'
+
+        elif action == 'update_status':
+            instruction_id = request.form.get('instruction_id', '')
+            new_status = request.form.get('status', '')
+            instruction = next(
+                (item for item in instructions if str(item.get('id')) == instruction_id),
+                None
+            )
+
+            if not instruction:
+                error_message = '対象の発信が見つかりません。'
+            elif new_status not in INSTRUCTION_STATUSES:
+                error_message = '対応状況を選択してください。'
+            else:
+                previous_status = instruction.get('status', '発令中')
+                previous_updated_at = instruction.get('updated_at', '')
+                instruction['status'] = new_status
+                instruction['updated_at'] = get_japan_time()
+                if save_instructions():
+                    return redirect(url_for('board', notice='updated'))
+                instruction['status'] = previous_status
+                instruction['updated_at'] = previous_updated_at
+                error_message = '対応状況を保存できませんでした。時間をおいて再度お試しください。'
+        else:
+            error_message = '操作を確認できませんでした。'
+
+    active_count = sum(
+        item.get('status', '発令中') in ('発令中', '対応中')
+        for item in instructions
+    )
+    return render_template(
+        'board.html',
+        instructions=instructions,
+        targets=INSTRUCTION_TARGETS,
+        urgencies=INSTRUCTION_URGENCIES,
+        statuses=INSTRUCTION_STATUSES,
+        active_count=active_count,
+        error_message=error_message,
+        notice=request.args.get('notice')
+    )
 
 # 検索結果ページ：templates/search_results.html を返す
 @app.route('/search_results')

@@ -104,6 +104,51 @@
         font-size: 14px;
     }
 
+    .resident-notices {
+        width: min(100%, 910px);
+        margin: 0 auto 24px;
+        padding: 18px 22px;
+        border-left: 5px solid #c43d34;
+        background: #fff;
+    }
+
+    .resident-notices h2 {
+        margin: 0 0 12px;
+        color: #8f2d27;
+        font-size: 19px;
+    }
+
+    .resident-notice-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .resident-notice {
+        padding: 10px 12px;
+        border-top: 1px solid #eadfdd;
+    }
+
+    .resident-notice p {
+        margin: 6px 0 0;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+    }
+
+    .notice-urgency {
+        display: inline-block;
+        padding: 3px 7px;
+        border-radius: 3px;
+        background: #fce5df;
+        color: #9f3025;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .notice-urgency.emergency {
+        background: #b42318;
+        color: #fff;
+    }
+
     @media (max-width: 600px) {
         .home-dashboard {
             gap: 20px;
@@ -129,6 +174,23 @@
         }
     }
 </style>
+
+{% if resident_notices %}
+<section class="resident-notices" aria-labelledby="residentNoticeHeading">
+    <h2 id="residentNoticeHeading">緊急のお知らせ</h2>
+    <div class="resident-notice-list">
+        {% for notice in resident_notices %}
+        {% set urgency = notice.get('urgency', '中') %}
+        <article class="resident-notice">
+            <span class="notice-urgency {% if urgency == '緊急' %}emergency{% endif %}">{{ urgency }}{% if urgency != '緊急' %}優先{% endif %}</span>
+            {% if notice.get('district') %}<strong> {{ notice.district }}</strong>{% endif %}
+            <p>{{ notice.get('content', '') }}</p>
+            {% if notice.get('shelter') %}<p>避難先：{{ notice.shelter }}</p>{% endif %}
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <div class="home-dashboard">
     <section class="dashboard-panel" aria-labelledby="mapHeading">

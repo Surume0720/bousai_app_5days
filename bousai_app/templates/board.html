@@ -3,23 +3,661 @@
 {% block title %}指示・発信ボード - 防災アプリ{% endblock %}
 
 {% block content %}
-<h2>発信ボード</h2>
-<p>住民向けの発信を登録・確認できます。</p>
+<style>
+  .board-page {
+    width: min(100%, 1440px);
+    margin: 0 auto;
+    color: #26364a;
+    font-size: calc(16px * var(--text-scale, 1));
+  }
 
-<!-- 発信一覧 -->
-<h3>発信一覧</h3>
-{% if instructions %}
-<table border="1" cellpadding="5">
-  <tr>
-    <th>内容</th>
-  </tr>
-  {% for inst in instructions %}
-  <tr>
-    <td>{{ inst.content }}{% if inst.shelter %}（避難先: {{ inst.shelter }}）{% endif %}</td>
-  </tr>
-  {% endfor %}
-</table>
-{% else %}
-<p>登録されている指示はありません。</p>
-{% endif %}
+  .board-header,
+  .board-toolbar,
+  .board-layout,
+  .board-filters,
+  .header-controls,
+  .text-size-controls {
+    display: flex;
+    gap: 24px;
+  }
+
+  .board-header {
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+
+  .board-header h2 {
+    margin: 0;
+    color: #193d68;
+    font-size: calc(26px * var(--text-scale, 1));
+  }
+
+  .header-controls,
+  .text-size-controls {
+    align-items: center;
+  }
+
+  .header-controls {
+    gap: 18px;
+  }
+
+  .text-size-controls {
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid #d5dee8;
+    border-radius: 4px;
+    background: #fff;
+  }
+
+  .text-size-label {
+    padding: 0 5px;
+    color: #53667b;
+    font-size: calc(13px * var(--text-scale, 1));
+    white-space: nowrap;
+  }
+
+  .text-size-button {
+    min-width: 58px;
+    height: 36px;
+    border: 1px solid #bdc9d6;
+    border-radius: 3px;
+    background: #fff;
+    color: #234d82;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .text-size-button:hover,
+  .text-size-button:focus-visible {
+    background: #edf4ff;
+    border-color: #2857a4;
+  }
+
+  .text-size-button[aria-pressed="true"] {
+    border-color: #2857a4;
+    background: #2857a4;
+    color: #fff;
+  }
+
+  .active-count {
+    padding: 9px 14px;
+    border-left: 4px solid #d8493f;
+    background: #fff;
+    font-weight: 700;
+  }
+
+  .active-count strong {
+    margin-left: 8px;
+    color: #c43d34;
+    font-size: calc(20px * var(--text-scale, 1));
+  }
+
+  .board-layout {
+    align-items: flex-start;
+  }
+
+  .compose-section {
+    flex: 0 0 340px;
+    padding-right: 24px;
+    border-right: 1px solid #dce3eb;
+  }
+
+  .list-section {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .section-heading {
+    margin: 0 0 18px;
+    color: #193d68;
+    font-size: calc(19px * var(--text-scale, 1));
+  }
+
+  .form-field {
+    margin-bottom: 15px;
+  }
+
+  .form-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: calc(14px * var(--text-scale, 1));
+    font-weight: 700;
+  }
+
+  .form-field input,
+  .form-field textarea,
+  .form-field select,
+  .board-filters input,
+  .board-filters select,
+  .status-form select {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid #bdc9d6;
+    border-radius: 4px;
+    background: #fff;
+    color: #26364a;
+    font: inherit;
+  }
+
+  .form-field textarea {
+    min-height: 110px;
+    resize: vertical;
+  }
+
+  .two-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .primary-button,
+  .status-form button {
+    min-height: 38px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 4px;
+    background: #2857a4;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .primary-button {
+    width: 100%;
+  }
+
+  .primary-button:hover,
+  .status-form button:hover {
+    background: #1e447f;
+  }
+
+  .confirm-dialog {
+    width: min(520px, calc(100% - 32px));
+    max-height: min(80vh, 720px);
+    padding: 24px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    color: #26364a;
+  }
+
+  .confirm-dialog::backdrop {
+    background: rgba(18, 33, 51, 0.55);
+  }
+
+  .confirm-dialog h2 {
+    margin: 0 0 10px;
+    color: #193d68;
+    font-size: calc(21px * var(--text-scale, 1));
+  }
+
+  .confirm-dialog-intro {
+    margin: 0 0 18px;
+  }
+
+  .confirm-details {
+    margin: 0;
+    border-top: 1px solid #dce3eb;
+  }
+
+  .confirm-details div {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #dce3eb;
+  }
+
+  .confirm-details dt {
+    color: #53667b;
+    font-weight: 700;
+  }
+
+  .confirm-details dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .confirm-actions button {
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid #bdc9d6;
+    border-radius: 4px;
+    background: #fff;
+    color: #30445d;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .confirm-actions .confirm-submit {
+    border-color: #2857a4;
+    background: #2857a4;
+    color: #fff;
+  }
+
+  .board-message {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border-left: 4px solid #27804b;
+    background: #eaf6ee;
+    color: #205d39;
+  }
+
+  .board-message.is-error {
+    border-color: #c43d34;
+    background: #fff0ee;
+    color: #8e2924;
+  }
+
+  .board-toolbar {
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .board-toolbar .section-heading {
+    margin: 0;
+  }
+
+  .board-filters {
+    gap: 8px;
+  }
+
+  .board-filters select {
+    width: auto;
+    min-width: 120px;
+    min-height: 36px;
+    padding: 6px 8px;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border-top: 2px solid #284a70;
+    background: #fff;
+  }
+
+  .instruction-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: calc(14px * var(--text-scale, 1));
+  }
+
+  .instruction-table th,
+  .instruction-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #dce3eb;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .instruction-table th {
+    background: #edf2f7;
+    color: #394e65;
+    font-size: calc(12px * var(--text-scale, 1));
+    white-space: nowrap;
+  }
+
+  .instruction-table tbody tr:hover {
+    background: #f7faff;
+  }
+
+  .urgency-badge,
+  .status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: calc(12px * var(--text-scale, 1));
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .urgency-emergency { background: #b42318; color: #fff; }
+  .urgency-high { background: #fce5df; color: #9f3025; }
+  .urgency-medium { background: #fff1cf; color: #76520a; }
+  .urgency-low { background: #e4edf6; color: #375674; }
+  .status-issued { background: #fff0ee; color: #9f3025; }
+  .status-working { background: #fff1cf; color: #76520a; }
+  .status-done { background: #e6f4e9; color: #25613a; }
+  .status-released { background: #e8edf2; color: #546477; }
+
+  .instruction-content {
+    min-width: 190px;
+    max-width: 360px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  .instruction-content strong {
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .instruction-meta,
+  .updated-time {
+    color: #6b7b8d;
+    font-size: calc(12px * var(--text-scale, 1));
+  }
+
+  .status-form {
+    display: grid;
+    grid-template-columns: minmax(100px, 1fr) auto;
+    gap: 6px;
+    min-width: 180px;
+  }
+
+  .status-form select {
+    min-height: 34px;
+    padding: 5px 7px;
+    font-size: calc(13px * var(--text-scale, 1));
+  }
+
+  .status-form button {
+    min-height: 34px;
+    padding: 5px 9px;
+    font-size: calc(13px * var(--text-scale, 1));
+  }
+
+  .empty-state {
+    padding: 32px 16px !important;
+    color: #68798b;
+    text-align: center !important;
+  }
+
+  @media (max-width: 1000px) {
+    .board-layout {
+      flex-direction: column;
+    }
+
+    .compose-section {
+      flex: auto;
+      width: 100%;
+      padding: 0 0 22px;
+      border-right: 0;
+      border-bottom: 1px solid #dce3eb;
+    }
+
+    .list-section {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .board-header,
+    .board-toolbar {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .board-header h2 {
+      font-size: calc(22px * var(--text-scale, 1));
+    }
+
+    .board-filters {
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    .board-filters select {
+      flex: 1 1 120px;
+    }
+
+    .instruction-table {
+      min-width: 850px;
+    }
+  }
+</style>
+
+<div class="board-page">
+  <header class="board-header">
+    <h2>指示・発信ボード</h2>
+    <div class="header-controls">
+      <div class="text-size-controls" role="group" aria-label="文字サイズの調整">
+        <span class="text-size-label">文字サイズ</span>
+        <button class="text-size-button" id="normalText" type="button" aria-label="文字サイズを100％にする" aria-pressed="true">100％</button>
+        <button class="text-size-button" id="largeText" type="button" aria-label="文字サイズを150％にする" aria-pressed="false">150％</button>
+      </div>
+      <div class="active-count">対応中の発信<strong>{{ active_count }}</strong></div>
+    </div>
+  </header>
+
+  {% if error_message %}
+    <div class="board-message is-error" role="alert">{{ error_message }}</div>
+  {% elif notice == 'created' %}
+    <div class="board-message" role="status">指示を発信しました。</div>
+  {% elif notice == 'updated' %}
+    <div class="board-message" role="status">対応状況を更新しました。</div>
+  {% endif %}
+
+  <div class="board-layout">
+    <section class="compose-section" aria-labelledby="composeHeading">
+      <h3 class="section-heading" id="composeHeading">新しい指示・発信</h3>
+      <form id="instructionForm" method="post" action="{{ url_for('board') }}">
+        <input type="hidden" name="action" value="create">
+        <div class="form-field">
+          <label for="target">発信先</label>
+          <select id="target" name="target" required>
+            <option value="">選択してください</option>
+            {% for target in targets %}
+              <option value="{{ target }}">{{ target }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="two-fields">
+          <div class="form-field">
+            <label for="district">対象地区</label>
+            <input id="district" name="district" type="text" placeholder="例：A地区">
+          </div>
+          <div class="form-field">
+            <label for="urgency">緊急度</label>
+            <select id="urgency" name="urgency" required>
+              {% for urgency in urgencies %}
+                <option value="{{ urgency }}" {% if urgency == '中' %}selected{% endif %}>{{ urgency }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="content">指示・発信内容</label>
+          <textarea id="content" name="content" required maxlength="500" placeholder="具体的な指示や住民へのお知らせ"></textarea>
+        </div>
+        <div class="form-field">
+          <label for="shelter">避難先・関連施設</label>
+          <input id="shelter" name="shelter" type="text" maxlength="100" placeholder="必要な場合に入力">
+        </div>
+        <button class="primary-button" type="submit">指示発信</button>
+      </form>
+    </section>
+
+    <section class="list-section" aria-labelledby="listHeading">
+      <div class="board-toolbar">
+        <h3 class="section-heading" id="listHeading">発信一覧 <span class="instruction-meta">{{ instructions|length }}件</span></h3>
+        <div class="board-filters" aria-label="発信一覧の絞り込み">
+          <select id="targetFilter" aria-label="発信先で絞り込み">
+            <option value="">すべての発信先</option>
+            {% for target in targets %}<option value="{{ target }}">{{ target }}</option>{% endfor %}
+          </select>
+          <select id="statusFilter" aria-label="対応状況で絞り込み">
+            <option value="">すべての状況</option>
+            {% for status in statuses %}<option value="{{ status }}">{{ status }}</option>{% endfor %}
+          </select>
+          <select id="urgencyFilter" aria-label="緊急度で絞り込み">
+            <option value="">すべての緊急度</option>
+            {% for urgency in urgencies %}<option value="{{ urgency }}">{{ urgency }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="instruction-table">
+          <thead>
+            <tr>
+              <th scope="col">緊急度</th>
+              <th scope="col">発信先・地区</th>
+              <th scope="col">指示・発信内容</th>
+              <th scope="col">発信日時</th>
+              <th scope="col">対応状況</th>
+            </tr>
+          </thead>
+          <tbody id="instructionRows">
+            {% for inst in instructions %}
+              {% set urgency = inst.get('urgency', '中') %}
+              {% set status = inst.get('status', '発令中') %}
+              <tr data-target="{{ inst.get('target', '') }}" data-status="{{ status }}" data-urgency="{{ urgency }}">
+                <td>
+                  {% if urgency == '緊急' %}<span class="urgency-badge urgency-emergency">緊急</span>
+                  {% elif urgency == '高' %}<span class="urgency-badge urgency-high">高</span>
+                  {% elif urgency == '低' %}<span class="urgency-badge urgency-low">低</span>
+                  {% else %}<span class="urgency-badge urgency-medium">中</span>{% endif %}
+                </td>
+                <td>
+                  <strong>{{ inst.get('target', '未設定') }}</strong>
+                  {% if inst.get('district') %}<div class="instruction-meta">{{ inst.district }}</div>{% endif %}
+                </td>
+                <td class="instruction-content">
+                  <strong>{{ inst.get('content', '') }}</strong>
+                  {% if inst.get('shelter') %}<div class="instruction-meta">避難先：{{ inst.shelter }}</div>{% endif %}
+                </td>
+                <td>
+                  <div>{{ inst.get('created_at', '日時不明') }}</div>
+                  <div class="updated-time">更新：{{ inst.get('updated_at', inst.get('created_at', '日時不明')) }}</div>
+                </td>
+                <td>
+                  {% if status == '発令中' %}<span class="status-badge status-issued">発令中</span>
+                  {% elif status == '対応中' %}<span class="status-badge status-working">対応中</span>
+                  {% elif status == '完了' %}<span class="status-badge status-done">完了</span>
+                  {% else %}<span class="status-badge status-released">{{ status }}</span>{% endif %}
+                  <form class="status-form" method="post" action="{{ url_for('board') }}">
+                    <input type="hidden" name="action" value="update_status">
+                    <input type="hidden" name="instruction_id" value="{{ inst.get('id', '') }}">
+                    <select name="status" aria-label="{{ inst.get('content', '発信') }}の対応状況">
+                      {% for option in statuses %}
+                        <option value="{{ option }}" {% if option == status %}selected{% endif %}>{{ option }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit">更新</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td class="empty-state" colspan="5">発信はまだありません。</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="confirm-dialog" id="instructionConfirmDialog" aria-labelledby="confirmDialogHeading">
+    <h2 id="confirmDialogHeading">指示発信の確認</h2>
+    <p class="confirm-dialog-intro">次の内容で発信します。内容を確認してください。</p>
+    <dl class="confirm-details">
+      <div><dt>発信先</dt><dd id="confirmTarget"></dd></div>
+      <div><dt>対象地区</dt><dd id="confirmDistrict"></dd></div>
+      <div><dt>緊急度</dt><dd id="confirmUrgency"></dd></div>
+      <div><dt>指示・発信内容</dt><dd id="confirmContent"></dd></div>
+      <div><dt>避難先・施設</dt><dd id="confirmShelter"></dd></div>
+    </dl>
+    <div class="confirm-actions">
+      <button id="editInstruction" type="button">戻って修正</button>
+      <button class="confirm-submit" id="confirmInstruction" type="button">この内容で発信</button>
+    </div>
+  </dialog>
+</div>
+
+<script>
+  const instructionForm = document.getElementById('instructionForm');
+  const instructionConfirmDialog = document.getElementById('instructionConfirmDialog');
+  let confirmedInstruction = false;
+
+  function setConfirmationValue(id, value) {
+    document.getElementById(id).textContent = value || '指定なし';
+  }
+
+  instructionForm.addEventListener('submit', function(event) {
+    if (confirmedInstruction) {
+      confirmedInstruction = false;
+      return;
+    }
+
+    event.preventDefault();
+    const formData = new FormData(instructionForm);
+    setConfirmationValue('confirmTarget', formData.get('target'));
+    setConfirmationValue('confirmDistrict', formData.get('district'));
+    setConfirmationValue('confirmUrgency', formData.get('urgency'));
+    setConfirmationValue('confirmContent', formData.get('content'));
+    setConfirmationValue('confirmShelter', formData.get('shelter'));
+    instructionConfirmDialog.showModal();
+  });
+
+  document.getElementById('editInstruction').addEventListener('click', function() {
+    instructionConfirmDialog.close();
+  });
+
+  document.getElementById('confirmInstruction').addEventListener('click', function() {
+    confirmedInstruction = true;
+    instructionConfirmDialog.close();
+    instructionForm.requestSubmit();
+  });
+
+  const boardPage = document.querySelector('.board-page');
+  const normalText = document.getElementById('normalText');
+  const largeText = document.getElementById('largeText');
+  const textScaleStorageKey = 'board-text-scale';
+  const allowedTextScales = [1, 1.5];
+  const savedTextScale = Number(localStorage.getItem(textScaleStorageKey));
+  let textScale = allowedTextScales.includes(savedTextScale) ? savedTextScale : 1;
+
+  function updateTextScale(nextScale) {
+    textScale = allowedTextScales.includes(nextScale) ? nextScale : 1;
+    boardPage.style.setProperty('--text-scale', textScale);
+    normalText.setAttribute('aria-pressed', textScale === 1);
+    largeText.setAttribute('aria-pressed', textScale === 1.5);
+    localStorage.setItem(textScaleStorageKey, String(textScale));
+  }
+
+  normalText.addEventListener('click', function() {
+    updateTextScale(1);
+  });
+
+  largeText.addEventListener('click', function() {
+    updateTextScale(1.5);
+  });
+
+  updateTextScale(textScale);
+
+  const instructionFilters = [
+    ['targetFilter', 'target'],
+    ['statusFilter', 'status'],
+    ['urgencyFilter', 'urgency']
+  ];
+
+  function filterInstructions() {
+    const filters = instructionFilters.map(([id, key]) => [
+      key,
+      document.getElementById(id).value
+    ]);
+
+    document.querySelectorAll('#instructionRows tr[data-target]').forEach(function(row) {
+      const matches = filters.every(([key, value]) => !value || row.dataset[key] === value);
+      row.hidden = !matches;
+    });
+  }
+
+  instructionFilters.forEach(([id]) => {
+    document.getElementById(id).addEventListener('change', filterInstructions);
+  });
+</script>
 {% endblock %}
