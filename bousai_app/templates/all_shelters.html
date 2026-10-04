@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}登録済み避難所一覧 - 防災アプリ{% endblock %}
+
+{% block content %}
+<style>
+  .all-shelters-page {
+    width: min(100%, 1280px);
+    margin: 0 auto;
+    color: #273444;
+  }
+
+  .all-shelters-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .all-shelters-header h2 {
+    margin: 0;
+    color: #193d68;
+    font-size: 25px;
+  }
+
+  .all-shelters-header p {
+    margin: 7px 0 0;
+    color: #62758a;
+  }
+
+  .all-shelters-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .all-shelters-actions a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    color: #2857a4;
+    font-weight: 700;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    border-top: 2px solid #284a70;
+    background: #fff;
+  }
+
+  .all-shelters-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+  }
+
+  .all-shelters-table th,
+  .all-shelters-table td {
+    padding: 13px 12px;
+    border-bottom: 1px solid #dce3eb;
+    text-align: left;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  .all-shelters-table th {
+    background: #edf2f7;
+    color: #3d536a;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .all-shelters-table tbody tr:hover {
+    background: #f6f9fc;
+  }
+
+  .all-shelters-table a {
+    color: #2857a4;
+    font-weight: 700;
+  }
+
+  .unregistered {
+    color: #64758a;
+  }
+
+  .all-shelters-empty {
+    padding: 30px 16px;
+    border-top: 2px solid #284a70;
+    background: #fff;
+    color: #62758a;
+    text-align: center;
+  }
+
+  @media (max-width: 650px) {
+    .all-shelters-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+</style>
+
+<section class="all-shelters-page">
+  <header class="all-shelters-header">
+    <div>
+      <h2>登録済み避難所一覧</h2>
+      <p>{{ shelters|length }}施設を掲載しています。</p>
+    </div>
+    <nav class="all-shelters-actions" aria-label="避難所一覧の関連ページ">
+      <a href="{{ url_for('shelter_search') }}">条件を指定して検索</a>
+      <a href="{{ url_for('index') }}">トップページへ戻る</a>
+    </nav>
+  </header>
+
+  {% if shelters %}
+    <div class="table-scroll" role="region" aria-label="登録済み避難所の全件一覧" tabindex="0">
+      <table class="all-shelters-table">
+        <thead>
+          <tr>
+            <th scope="col">施設名</th>
+            <th scope="col">地区</th>
+            <th scope="col">対応災害</th>
+            <th scope="col">設備・対応</th>
+            <th scope="col">詳細</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for shelter in shelters %}
+            <tr>
+              <td>{{ shelter.get('name') or '未登録' }}</td>
+              <td>{% if shelter.get('district') %}{{ shelter.district }}{% else %}<span class="unregistered">未登録</span>{% endif %}</td>
+              <td>{% if shelter.display_disaster_types %}{{ shelter.display_disaster_types|join('、') }}{% else %}<span class="unregistered">未登録</span>{% endif %}</td>
+              <td>{% if shelter.display_equipment %}{{ shelter.display_equipment|join('、') }}{% else %}<span class="unregistered">未登録</span>{% endif %}</td>
+              <td><a href="{{ url_for('shelter_detail', shelter_id=shelter.get('id')) }}">詳細を見る</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="all-shelters-empty">登録されている避難所はありません。</p>
+  {% endif %}
+</section>
+{% endblock %}

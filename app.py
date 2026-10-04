@@ -121,6 +121,10 @@ SHELTER_STATUSES = ["開設中", "開設前", "閉鎖", "状況未登録"]
 SHELTER_CROWD_STATUSES = ["空きあり", "やや混雑", "混雑", "未確認"]
 SHELTER_HAZARDS = ["地震", "津波", "洪水", "土砂災害", "高潮", "火災", "大雪"]
 SHELTER_FACILITIES = ["ペット可", "バリアフリー", "非常用電源", "備蓄あり", "授乳室"]
+SEARCH_DISASTER_TYPES = ["地震", "洪水", "津波", "土砂崩れ", "積雪", "台風", "火災"]
+SEARCH_EQUIPMENT_OPTIONS = [
+    "ペット可", "バリアフリー", "車椅子対応", "高齢者対応", "家族対応", "外国人対応"
+]
 GEOCODE_URL = "https://nominatim.openstreetmap.org/search"
 GEOCODE_USER_AGENT = os.environ.get(
     'GEOCODER_USER_AGENT', 'BousaiApp/1.0 (shelter address search)'
@@ -164,6 +168,8 @@ def save_shelters():
 
 
 def valid_coordinates(latitude, longitude):
+    if isinstance(latitude, bool) or isinstance(longitude, bool):
+        return None
     try:
         latitude = float(latitude)
         longitude = float(longitude)
@@ -285,19 +291,61 @@ def format_report_time(iso_str):
         return iso_str
 
 
-def filter_shelters(district=None, query=None):
-    """地区・施設名・住所で避難所を絞り込む"""
-    results = [s for s in shelters if not district or s.get('district') == district]
-    if query:
-        normalized_query = query.strip().casefold()
-        results = [
-            shelter for shelter in results
-            if normalized_query in ' '.join((
-                str(shelter.get('name', '')),
-                str(shelter.get('address', '')),
-                str(shelter.get('district', ''))
-            )).casefold()
-        ]
+def shelter_disaster_types(shelter):
+    values = []
+    for field in ('disaster_types', 'hazards'):
+        stored = shelter.get(field, [])
+        if isinstance(stored, list):
+            values.extend(value.strip() for value in stored if isinstance(value, str) and value.strip())
+    return set(values)
+
+
+def shelter_equipment(shelter):
+    values = set()
+    for field in ('equipment', 'facilities'):
+        stored = shelter.get(field, [])
+        if isinstance(stored, list):
+            values.update(value.strip() for value in stored if isinstance(value, str) and value.strip())
+    boolean_fields = {
+        'ペット可': 'pet',
+        'バリアフリー': 'barrier_free',
+        '車椅子対応': 'wheelchair',
+        '高齢者対応': 'elderly',
+        '家族対応': 'family',
+        '外国人対応': 'foreigners'
+    }
+    values.update(label for label, field in boolean_fields.items() if shelter.get(field) is True)
+    return values
+
+
+def filter_shelters(district=None, query=None, disaster_type=None, equipment=None):
+    """指定された地区・災害・施設名・全設備条件をANDで適用する"""
+    district = district.strip() if isinstance(district, str) else ''
+    if district == '全地域':
+        district = ''
+    query = query.strip().casefold() if isinstance(query, str) else ''
+    disaster_type = disaster_type.strip() if isinstance(disaster_type, str) else ''
+    if disaster_type == '全件':
+        disaster_type = ''
+    selected_equipment = equipment if isinstance(equipment, (list, tuple)) else []
+    selected_equipment = [
+        value.strip() for value in selected_equipment
+        if isinstance(value, str) and value.strip()
+    ]
+
+    results = []
+    for shelter in shelters:
+        shelter_district = shelter.get('district')
+        if district and (not isinstance(shelter_district, str) or shelter_district.strip() != district):
+            continue
+        if query and query not in str(shelter.get('name') or '').casefold():
+            continue
+        if disaster_type and disaster_type not in shelter_disaster_types(shelter):
+            continue
+        available_equipment = shelter_equipment(shelter)
+        if any(value not in SEARCH_EQUIPMENT_OPTIONS or value not in available_equipment for value in selected_equipment):
+            continue
+        results.append(shelter)
     return results
 
 
@@ -322,6 +370,11 @@ def shelter_for_display(shelter):
         if shelter.get(key) and label not in facilities:
             facilities.append(label)
     display['display_facilities'] = facilities
+    display['display_equipment'] = sorted(shelter_equipment(shelter))
+    display['display_disaster_types'] = sorted(shelter_disaster_types(shelter))
+    display['has_coordinates'] = valid_coordinates(
+        shelter.get('latitude'), shelter.get('longitude')
+    ) is not None
     return display
 
 
@@ -684,18 +737,24 @@ def geocode_search():
 def shelter_search():
     districts = sorted({
         shelter.get('district') for shelter in shelters
-        if shelter.get('district')
+        if isinstance(shelter.get('district'), str) and shelter.get('district').strip()
     })
-    return render_template('shelter_search.html', districts=districts)
+    selected_district = request.args.get('district', '').strip()
+    if selected_district and selected_district not in districts:
+        districts.insert(0, selected_district)
+    return render_template(
+        'shelter_search.html',
+        districts=districts,
+        disaster_types=SEARCH_DISASTER_TYPES,
+        equipment_options=SEARCH_EQUIPMENT_OPTIONS
+    )
 
 # 全施設一覧ページ
 @app.route('/all_shelters')
 def all_shelters():
     return render_template(
-        'search_results.html',
-        results=[shelter_for_display(shelter) for shelter in shelters],
-        district='',
-        query=''
+        'all_shelters.html',
+        shelters=[shelter_for_display(shelter) for shelter in shelters]
     )
 
 
@@ -810,7 +869,12 @@ def board():
 def search_results():
     district = request.args.get('district', '').strip()
     query = request.args.get('q', '').strip()
-    results = filter_shelters(district, query)
+    disaster_type = (
+        request.args.get('select_disaster')
+        or request.args.get('disaster_type', '')
+    ).strip()
+    equipment = request.args.getlist('equipment')
+    results = filter_shelters(district, query, disaster_type, equipment)
     display_results = []
     for shelter in results:
         display_shelter = shelter_for_display(shelter)
@@ -818,20 +882,29 @@ def search_results():
             'shelter_detail',
             shelter_id=shelter['id'],
             q=query,
-            district=district
+            district=district,
+            disaster_type=disaster_type,
+            equipment=equipment
         )
         display_results.append(display_shelter)
     return render_template(
         'search_results.html',
         results=display_results,
         district=district,
-        query=query
+        query=query,
+        disaster_type=disaster_type,
+        selected_equipment=equipment
     )
 
 # JSON API：/shelters?district=地区名
 @app.route('/shelters', methods=['GET'])
 def get_shelters():
-    results = filter_shelters(request.args.get('district'))
+    results = filter_shelters(
+        request.args.get('district'),
+        request.args.get('q'),
+        request.args.get('disaster_type'),
+        request.args.getlist('equipment')
+    )
     return jsonify(results)
 
 # 気象警報・注意報API

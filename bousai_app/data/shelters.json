@@ -1,11 +1,39 @@
 [
   {
+    "name": "aaa",
+    "address": "直島, 直島町, 香川郡, 香川県, 日本",
+    "status": "開設前",
+    "open_status": "開設前",
+    "crowd_status": "空きあり",
+    "capacity": null,
+    "hazards": [],
+    "facilities": [],
+    "note": "",
+    "latitude": 34.4604255,
+    "longitude": 133.984582,
+    "id": 9
+  },
+  {
     "id": 1,
-    "name": "御所見小学校"
+    "name": "御所見小学校",
+    "address": "大阪市, 大阪府, 日本",
+    "status": "開設中",
+    "open_status": "開設中",
+    "crowd_status": "やや混雑",
+    "capacity": null,
+    "hazards": [],
+    "facilities": [
+      "ペット可"
+    ],
+    "note": "",
+    "latitude": 34.6937569,
+    "longitude": 135.5014539
   },
   {
     "id": 2,
-    "name": "片瀬小学校"
+    "name": "片瀬小学校",
+    "status": "開設前",
+    "open_status": "開設前"
   },
   {
     "id": 5,
@@ -16,20 +44,23 @@
     "district": "",
     "address": "",
     "capacity": "",
-    "phone": ""
+    "phone": "",
+    "id": 6
   },
   {
     "name": "あああ",
     "district": "",
     "address": "",
     "capacity": "",
-    "phone": ""
+    "phone": "",
+    "id": 7
   },
   {
     "name": "直島中学校",
     "district": "",
     "address": "",
     "capacity": "",
-    "phone": ""
+    "phone": "",
+    "id": 8
   }
 ]

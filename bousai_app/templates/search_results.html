@@ -1,94 +1,747 @@
 {% extends "base.html" %}
 
+{% block title %}避難所検索結果 - 防災アプリ{% endblock %}
+
 {% block content %}
 <style>
-  .shelter-results {
-    width: min(100%, 1040px);
+  .shelter-results-page {
+    width: min(100%, 1480px);
     margin: 0 auto;
+    color: #273444;
   }
 
-  .shelter-results h2 {
-    margin-top: 0;
-    color: #193d68;
+  .results-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
   }
+
+  .results-header h2 {
+    margin: 0;
+    color: #193d68;
+    font-size: 25px;
+  }
+
+  .results-summary {
+    margin: 6px 0 0;
+    color: #62758a;
+  }
+
+  .results-header a,
+  .shelter-result a {
+    color: #2857a4;
+    font-weight: 700;
+    text-underline-offset: 2px;
+  }
+
+  .basepoint-panel {
+    margin-bottom: 18px;
+    padding: 16px 18px;
+    border-top: 2px solid #284a70;
+    background: #fff;
+  }
+
+  .basepoint-panel h3 {
+    margin: 0 0 12px;
+    color: #243e5c;
+    font-size: 17px;
+  }
+
+  .basepoint-controls {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.3fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) auto auto;
+    gap: 9px;
+    align-items: end;
+  }
+
+  .basepoint-field label {
+    display: block;
+    margin-bottom: 5px;
+    color: #53667b;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .basepoint-field input {
+    width: 100%;
+    min-height: 40px;
+    padding: 7px 9px;
+    border: 1px solid #bdc9d6;
+    border-radius: 4px;
+    background: #fff;
+    color: #26364a;
+    font: inherit;
+  }
+
+  .basepoint-button {
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #2857a4;
+    border-radius: 4px;
+    background: #2857a4;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .basepoint-button.secondary {
+    background: #fff;
+    color: #2857a4;
+  }
+
+  .basepoint-button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+
+  .basepoint-message,
+  .route-disclaimer,
+  .map-message {
+    margin: 8px 0 0;
+    color: #62758a;
+    font-size: 13px;
+  }
+
+  .basepoint-message.is-error,
+  .map-message.is-error {
+    color: #9f3025;
+  }
+
+  .results-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .map-panel,
+  .results-panel {
+    min-width: 0;
+    padding: 18px;
+    border-top: 2px solid #284a70;
+    background: #fff;
+  }
+
+  .panel-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .panel-title-row h3 {
+    margin: 0;
+    color: #243e5c;
+    font-size: 18px;
+  }
+
+  .panel-count {
+    color: #62758a;
+    font-size: 13px;
+  }
+
+  #shelterMap {
+    height: min(68vh, 680px);
+    min-height: 380px;
+    border-radius: 5px;
+    background: #e5edf2;
+  }
+
+  .map-legend {
+    display: grid;
+    gap: 7px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    color: #53667b;
+    font-size: 13px;
+  }
+
+  .map-legend-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 13px;
+    height: 13px;
+    border: 2px solid #62758a;
+    border-radius: 50%;
+  }
+
+  .legend-crowd-available { background: #2878c7; }
+  .legend-crowd-busy { background: #e3a21a; }
+  .legend-crowd-full { background: #c43d34; }
+  .legend-open { border-color: #25834a; }
+  .legend-paused { border-color: #d97822; }
+  .legend-closed { border-color: #66717e; }
 
   .shelter-results-list {
     display: grid;
-    gap: 12px;
-    padding: 0;
+    gap: 10px;
+    max-height: min(68vh, 760px);
+    margin: 0;
+    padding: 0 4px 0 0;
+    overflow-y: auto;
     list-style: none;
   }
 
   .shelter-result {
-    padding: 16px;
-    border-top: 2px solid #dce3eb;
+    padding: 14px;
+    border: 1px solid #dce3eb;
+    border-left: 4px solid #b8c5d3;
     background: #fff;
   }
 
-  .shelter-result h3 {
-    margin: 0;
-    color: #243e5c;
+  .shelter-result.is-selected {
+    border-color: #2857a4;
+    border-left-color: #2857a4;
+    background: #f4f8fe;
   }
 
-  .shelter-result p {
-    margin: 8px 0 0;
-    line-height: 1.55;
+  .result-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .result-card-header h4 {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.4;
     overflow-wrap: anywhere;
   }
 
-  .shelter-result-meta {
-    color: #64758a;
-    font-size: 14px;
+  .result-card-header h4 a {
+    color: #243e5c;
   }
 
-  .shelter-result-actions {
+  .result-statuses {
     display: flex;
     flex-wrap: wrap;
-    gap: 14px;
-    margin-top: 18px;
+    gap: 6px;
+    margin-top: 8px;
   }
 
-  .shelter-result-actions a {
-    color: #2857a4;
+  .result-badge {
+    display: inline-block;
+    padding: 3px 7px;
+    border-radius: 3px;
+    background: #edf1f5;
+    color: #40566e;
+    font-size: 12px;
     font-weight: 700;
+  }
+
+  .crowd-available { background: #e7f0fb; color: #1d5e9c; }
+  .crowd-busy { background: #fff1cf; color: #76520a; }
+  .crowd-full { background: #fce5df; color: #9f3025; }
+  .open-status { background: #e5f4e9; color: #23613a; }
+  .preopen-status { background: #fff1cf; color: #76520a; }
+  .closed-status { background: #e8edf2; color: #546477; }
+
+  .result-address {
+    margin: 9px 0 0;
+    color: #53667b;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .result-distance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 9px;
+    background: #f5f7f9;
+    color: #394e65;
+    font-size: 13px;
+  }
+
+  .result-distance-grid strong {
+    display: block;
+    margin-bottom: 2px;
+    color: #64758a;
+    font-size: 11px;
+  }
+
+  .result-facilities {
+    margin: 9px 0 0;
+    color: #52667b;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .result-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin-top: 12px;
+  }
+
+  .focus-marker-button {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #2857a4;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .results-empty {
+    padding: 28px 14px;
+    color: #64758a;
+    text-align: center;
+  }
+
+  .map-popup h4 {
+    margin: 0 0 6px;
+    font-size: 15px;
+  }
+
+  .map-popup p { margin: 4px 0; }
+  .map-popup a { color: #2857a4; }
+
+  @media (max-width: 900px) {
+    .results-layout { grid-template-columns: 1fr; }
+    #shelterMap { height: 48vh; min-height: 300px; }
+    .shelter-results-list { max-height: none; }
+  }
+
+  @media (max-width: 650px) {
+    .results-header { align-items: flex-start; flex-direction: column; }
+    .basepoint-controls { grid-template-columns: 1fr 1fr; }
+    .basepoint-field:first-child { grid-column: 1 / -1; }
+    .basepoint-button { width: 100%; }
+    .map-panel, .results-panel { padding: 14px; }
+    #shelterMap { height: 42vh; min-height: 260px; }
+    .result-card-header { flex-direction: column; }
   }
 </style>
 
-<section class="shelter-results">
-<h2>避難所一覧</h2>
-{% if query or district %}<p>検索条件：{{ query or '施設名・住所なし' }}{% if district %}／{{ district }}{% endif %}</p>{% endif %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-{% if results %}
-  <p>{{ results|length }}施設</p>
-  <ul class="shelter-results-list">
-    {% for shelter in results %}
-    {% set status = shelter.get('status', '状況未登録') %}
-    <li class="shelter-result">
-      <h3>{{ shelter.get('name', '名称未登録') }}</h3>
-      <p><strong>開設状況：</strong>{{ status }}</p>
-      <p><strong>住所：</strong>{{ shelter.get('address') or '未登録' }}</p>
-      <p class="shelter-result-meta"><strong>収容人数：</strong>{% if shelter.get('capacity') %}{{ shelter.capacity }}人{% else %}未登録{% endif %}</p>
-      {% if shelter.get('hazards') %}<p><strong>対応できる災害：</strong>{{ shelter.hazards|join('、') }}</p>{% endif %}
-      {% if shelter.get('facilities') %}<p><strong>設備・受け入れ条件：</strong>{{ shelter.facilities|join('、') }}</p>{% endif %}
-      {% if shelter.get('latitude') is not none and shelter.get('longitude') is not none %}
-        <p class="shelter-result-meta">地図上の位置情報あり</p>
-      {% else %}
-        <p class="shelter-result-meta">地図上の位置情報は未登録です</p>
-      {% endif %}
-      <div class="shelter-result-actions">
-        <a href="{{ url_for('index') }}#shelterMapSection">避難所マップを見る</a>
-        {% if session.logged_in and shelter.get('id') is not none %}<a href="{{ url_for('shelter_register', edit=shelter.get('id')) }}">施設情報を編集</a>{% endif %}
+<section class="shelter-results-page">
+  <header class="results-header">
+    <div>
+      <h2>避難所検索結果</h2>
+      <p class="results-summary">{{ results|length }}施設 · 検索条件：災害 {{ disaster_type or '全件' }}／地区 {{ district or '全地域' }}／キーワード {{ query or '指定なし' }}{% if selected_equipment %}／設備 {{ selected_equipment|join('・') }}{% endif %}</p>
+    </div>
+    <a href="{{ url_for('shelter_search', q=query, district=district, disaster_type=disaster_type, equipment=selected_equipment) }}">検索条件を変更</a>
+  </header>
+
+  <section class="basepoint-panel" aria-labelledby="basepointHeading">
+    <h3 id="basepointHeading">距離の基準地点</h3>
+    <div class="basepoint-controls">
+      <div class="basepoint-field">
+        <label for="baseName">地点名</label>
+        <input id="baseName" type="text" maxlength="100" value="青森港国際クルーズターミナル" autocomplete="off">
       </div>
-    </li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>該当する避難所が見つかりませんでした</p>
-{% endif %}
+      <div class="basepoint-field">
+        <label for="baseLatitude">緯度</label>
+        <input id="baseLatitude" type="number" min="-90" max="90" step="any" value="40.8178" inputmode="decimal">
+      </div>
+      <div class="basepoint-field">
+        <label for="baseLongitude">経度</label>
+        <input id="baseLongitude" type="number" min="-180" max="180" step="any" value="140.7575" inputmode="decimal">
+      </div>
+      <button class="basepoint-button" id="saveBasepoint" type="button">地点を保存</button>
+      <button class="basepoint-button secondary" id="useCurrentLocation" type="button">現在地を使用</button>
+    </div>
+    <p class="basepoint-message" id="basepointMessage" role="status" aria-live="polite">基準地点からの直線距離で近い順に表示します。</p>
+    <p class="route-disclaimer">徒歩経路APIは未接続です。徒歩時間は時速4kmとして直線距離から算出した概算で、道路上の経路・所要時間ではありません。</p>
+  </section>
 
-<p>
-  <a href="/shelter_search">検索画面に戻る</a> |
-  <a href="/">トップページへ戻る</a>
-</p>
+  <div class="results-layout">
+    <section class="map-panel" aria-labelledby="mapHeading">
+      <div class="panel-title-row">
+        <h3 id="mapHeading">地図</h3>
+        <span class="panel-count" id="mappedCount"></span>
+      </div>
+      <div id="shelterMap" aria-label="基準地点と検索結果の避難所地図"></div>
+      <p class="map-message" id="mapMessage" role="status" aria-live="polite">地図を読み込んでいます…</p>
+      <ul class="map-legend" aria-label="地図マーカーの凡例">
+        <li><strong>混雑状況（塗り）</strong>
+          <div class="map-legend-group">
+            <span class="legend-item"><i class="legend-dot legend-crowd-available"></i>空きあり</span>
+            <span class="legend-item"><i class="legend-dot legend-crowd-busy"></i>やや混雑</span>
+            <span class="legend-item"><i class="legend-dot legend-crowd-full"></i>混雑</span>
+            <span class="legend-item"><i class="legend-dot"></i>未確認</span>
+          </div>
+        </li>
+        <li><strong>開館状況（縁）</strong>
+          <div class="map-legend-group">
+            <span class="legend-item"><i class="legend-dot legend-open"></i>開館中</span>
+            <span class="legend-item"><i class="legend-dot legend-paused"></i>休止中・開設前</span>
+            <span class="legend-item"><i class="legend-dot legend-closed"></i>閉鎖</span>
+            <span class="legend-item"><i class="legend-dot"></i>未確認</span>
+          </div>
+        </li>
+      </ul>
+      <p class="route-disclaimer">地図：© OpenStreetMap contributors</p>
+    </section>
+
+    <section class="results-panel" aria-labelledby="shelterListHeading">
+      <div class="panel-title-row">
+        <h3 id="shelterListHeading">避難所一覧</h3>
+        <span class="panel-count">{{ results|length }}施設</span>
+      </div>
+      {% if results %}
+        <ul class="shelter-results-list" id="shelterResultsList">
+          {% for shelter in results %}
+            <li class="shelter-result" data-shelter-index="{{ loop.index0 }}">
+              <div class="result-card-header">
+                <h4><a href="{{ shelter.get('detail_url') or url_for('shelter_detail', shelter_id=shelter.get('id'), q=query, district=district, disaster_type=disaster_type, equipment=selected_equipment) }}">{{ shelter.get('name', '名称未登録') }}</a></h4>
+                <div class="result-statuses">
+                  <span class="result-badge {% if shelter.display_crowd_status == '空きあり' %}crowd-available{% elif shelter.display_crowd_status == 'やや混雑' %}crowd-busy{% elif shelter.display_crowd_status == '混雑' %}crowd-full{% endif %}">混雑：{{ shelter.display_crowd_status }}</span>
+                  <span class="result-badge {% if shelter.display_open_status == '開設中' %}open-status{% elif shelter.display_open_status == '開設前' %}preopen-status{% elif shelter.display_open_status == '閉鎖' %}closed-status{% endif %}">開館：{{ shelter.display_open_status }}</span>
+                </div>
+              </div>
+              <p class="result-address">{{ shelter.get('address') or '住所未登録' }}{% if shelter.get('district') %} · {{ shelter.district }}{% endif %}</p>
+              <div class="result-distance-grid">
+                <span><strong>基準地点から</strong><span data-distance-for="{{ loop.index0 }}">{% if shelter.has_coordinates %}計算中{% else %}位置情報未確認{% endif %}</span></span>
+                <span><strong>徒歩時間の概算</strong><span data-walk-for="{{ loop.index0 }}">{% if shelter.has_coordinates %}計算中{% else %}算出不可{% endif %}</span></span>
+              </div>
+              {% if shelter.display_facilities %}<p class="result-facilities"><strong>設備：</strong>{{ shelter.display_facilities|join('、') }}</p>{% else %}<p class="result-facilities">設備：未確認</p>{% endif %}
+              <div class="result-card-actions">
+                {% if shelter.has_coordinates %}<button class="focus-marker-button" type="button" data-focus-index="{{ loop.index0 }}">地図で確認</button>{% else %}<span class="result-facilities">地図位置：未確認</span>{% endif %}
+                  {% if shelter.has_coordinates %}<span class="result-facilities">位置情報あり</span>{% endif %}
+                <a href="{{ shelter.get('detail_url') or url_for('shelter_detail', shelter_id=shelter.get('id'), q=query, district=district, disaster_type=disaster_type, equipment=selected_equipment) }}">施設詳細</a>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="results-empty">該当する避難所が見つかりませんでした。検索条件を変更してお試しください。</p>
+      {% endif %}
+    </section>
+  </div>
 </section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const shelters = {{ results|tojson }};
+    const storageKey = 'shelter-search-basepoint';
+    const defaultBasepoint = {
+        name: '青森港国際クルーズターミナル',
+        latitude: 40.8178,
+        longitude: 140.7575
+    };
+    const baseName = document.getElementById('baseName');
+    const baseLatitude = document.getElementById('baseLatitude');
+    const baseLongitude = document.getElementById('baseLongitude');
+    const basepointMessage = document.getElementById('basepointMessage');
+    const mapMessage = document.getElementById('mapMessage');
+    const mapCount = document.getElementById('mappedCount');
+    let basepoint = { ...defaultBasepoint };
+    let map = null;
+    let baseMarker = null;
+    let shelterMarkers = new Map();
+    let tileUnavailable = false;
+
+    function validPoint(latitudeValue, longitudeValue) {
+        if (latitudeValue === '' || longitudeValue === '' || latitudeValue === null || longitudeValue === null) return null;
+      if (typeof latitudeValue === 'boolean' || typeof longitudeValue === 'boolean') return null;
+        const latitude = Number(latitudeValue);
+        const longitude = Number(longitudeValue);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+        if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+        return { latitude, longitude };
+    }
+
+    function shelterPoint(shelter) {
+        return validPoint(shelter.latitude, shelter.longitude);
+    }
+
+    function readSavedBasepoint() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(storageKey));
+            const point = saved && validPoint(saved.latitude, saved.longitude);
+            if (point && typeof saved.name === 'string' && saved.name.trim()) {
+                return { name: saved.name.trim(), ...point };
+            }
+        } catch (error) {
+            basepointMessage.textContent = '保存済みの基準地点を読み込めませんでした。初期地点を使用します。';
+        }
+        return { ...defaultBasepoint };
+    }
+
+      function setBasepointInputs() {
+        baseName.value = basepoint.name;
+        baseLatitude.value = basepoint.latitude;
+        baseLongitude.value = basepoint.longitude;
+      }
+
+    function setBasepointInputs() {
+        baseName.value = basepoint.name;
+        baseLatitude.value = basepoint.latitude;
+        baseLongitude.value = basepoint.longitude;
+    }
+
+    function distanceMeters(from, to) {
+        const radians = degrees => degrees * Math.PI / 180;
+        const latitudeDelta = radians(to.latitude - from.latitude);
+        const longitudeDelta = radians(to.longitude - from.longitude);
+        const a = Math.sin(latitudeDelta / 2) ** 2 +
+            Math.cos(radians(from.latitude)) * Math.cos(radians(to.latitude)) *
+            Math.sin(longitudeDelta / 2) ** 2;
+        return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function formatDistance(meters) {
+        return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
+    }
+
+    function formatWalkingEstimate(meters) {
+        if (meters === 0) return '0分（概算）';
+        return `${Math.max(1, Math.ceil(meters / 4000 * 60))}分（概算）`;
+    }
+
+    function crowdColor(status) {
+        if (status === '空きあり') return '#2878c7';
+        if (status === 'やや混雑') return '#e3a21a';
+        if (status === '混雑') return '#c43d34';
+        return '#8a96a3';
+    }
+
+    function openColor(status) {
+        if (status === '開設中') return '#25834a';
+        if (status === '開設前' || status === '休止中') return '#d97822';
+        if (status === '閉鎖中' || status === '閉鎖') return '#66717e';
+        return '#8995a2';
+    }
+
+    function addPopupText(container, label, value) {
+        const line = document.createElement('p');
+        const strong = document.createElement('strong');
+        strong.textContent = `${label}：`;
+        line.append(strong, document.createTextNode(value || '未確認'));
+        container.append(line);
+    }
+
+    function popupContent(shelter, index, distance) {
+        const popup = document.createElement('div');
+        popup.className = 'map-popup';
+        const heading = document.createElement('h4');
+        heading.textContent = shelter.name || '名称未登録';
+        popup.append(heading);
+        addPopupText(popup, '住所', shelter.address || '未登録');
+        addPopupText(popup, '混雑状況', shelter.display_crowd_status || '未確認');
+        addPopupText(popup, '開館状況', shelter.display_open_status || '状況未登録');
+        addPopupText(popup, '基準地点から', formatDistance(distance));
+        addPopupText(popup, '徒歩時間の概算', formatWalkingEstimate(distance));
+        if (shelter.display_facilities && shelter.display_facilities.length) {
+            addPopupText(popup, '設備', shelter.display_facilities.join('、'));
+        }
+        const link = document.createElement('a');
+        link.href = shelter.detail_url || `/shelters/${encodeURIComponent(shelter.id)}`;
+        link.textContent = '施設詳細';
+        popup.append(link);
+        return popup;
+    }
+
+    function focusResult(index) {
+        const marker = shelterMarkers.get(index);
+        const card = document.querySelector(`[data-shelter-index="${index}"]`);
+        document.querySelectorAll('.shelter-result.is-selected').forEach(item => item.classList.remove('is-selected'));
+        if (card) {
+            card.classList.add('is-selected');
+            card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+        if (marker && map) {
+            map.panTo(marker.getLatLng());
+            marker.openPopup();
+        }
+    }
+
+    function drawMapAndSortResults() {
+        const locatedRecords = [];
+        shelters.forEach((shelter, index) => {
+            const point = shelterPoint(shelter);
+            const distance = point ? distanceMeters(basepoint, point) : null;
+            const distanceLabel = document.querySelector(`[data-distance-for="${index}"]`);
+            const walkLabel = document.querySelector(`[data-walk-for="${index}"]`);
+            if (distanceLabel) distanceLabel.textContent = distance === null ? '位置情報未確認' : formatDistance(distance);
+            if (walkLabel) walkLabel.textContent = distance === null ? '算出不可' : formatWalkingEstimate(distance);
+            if (point) locatedRecords.push({ shelter, index, point, distance });
+        });
+
+        locatedRecords.sort((left, right) => left.distance - right.distance || left.index - right.index);
+        const distanceByIndex = new Map(locatedRecords.map(record => [record.index, record.distance]));
+        const resultList = document.getElementById('shelterResultsList');
+        if (resultList) {
+            const rows = [...resultList.querySelectorAll('[data-shelter-index]')];
+            rows.sort((left, right) => {
+            const leftIndex = Number(left.dataset.shelterIndex);
+            const rightIndex = Number(right.dataset.shelterIndex);
+            const leftDistance = distanceByIndex.get(leftIndex);
+            const rightDistance = distanceByIndex.get(rightIndex);
+            if (leftDistance === undefined && rightDistance === undefined) return leftIndex - rightIndex;
+            if (leftDistance === undefined) return 1;
+            if (rightDistance === undefined) return -1;
+            return leftDistance - rightDistance || leftIndex - rightIndex;
+            });
+            rows.forEach(row => resultList.append(row));
+            rows.forEach(row => {
+                const button = row.querySelector('[data-focus-index]');
+                if (button) button.onclick = () => focusResult(Number(button.dataset.focusIndex));
+                const index = Number(row.dataset.shelterIndex);
+                row.onclick = event => {
+                    if (!event.target.closest('a, button')) focusResult(index);
+                };
+                row.tabIndex = 0;
+                row.onkeydown = event => {
+                    if (event.key === 'Enter' && event.target === row) focusResult(index);
+                };
+            });
+        }
+
+        const unlocatedCount = shelters.length - locatedRecords.length;
+        mapCount.textContent = `${locatedRecords.length}/${shelters.length}施設を地図表示`;
+        if (!map) return;
+        mapMessage.classList.remove('is-error');
+        mapMessage.textContent = tileUnavailable
+          ? '地図タイルを読み込めません。施設一覧は引き続き利用できます。'
+          : unlocatedCount
+            ? `位置情報未確認：${unlocatedCount}施設。該当施設は一覧に表示しています。`
+            : `検索結果${shelters.length}施設を地図に表示しています。`;
+        if (tileUnavailable) mapMessage.classList.add('is-error');
+        shelterMarkers.forEach(marker => map.removeLayer(marker));
+        shelterMarkers = new Map();
+        const bounds = [ [basepoint.latitude, basepoint.longitude] ];
+        locatedRecords.forEach(record => {
+            const crowd = record.shelter.display_crowd_status || '未確認';
+            const open = record.shelter.display_open_status || '状況未登録';
+            const marker = L.circleMarker([record.point.latitude, record.point.longitude], {
+                radius: 9,
+                color: openColor(open),
+                weight: 4,
+                dashArray: open === '状況未登録' ? '4 3' : null,
+                fillColor: crowdColor(crowd),
+                fillOpacity: 0.95
+            }).addTo(map);
+            marker.bindPopup(popupContent(record.shelter, record.index, record.distance));
+            marker.on('click', () => focusResult(record.index));
+            shelterMarkers.set(record.index, marker);
+            bounds.push([record.point.latitude, record.point.longitude]);
+        });
+
+        const basePopup = document.createElement('div');
+        const baseHeading = document.createElement('strong');
+        baseHeading.textContent = basepoint.name;
+        basePopup.append(baseHeading);
+        if (!baseMarker) {
+            baseMarker = L.circleMarker([basepoint.latitude, basepoint.longitude], {
+                radius: 8,
+                color: '#143f6b',
+                weight: 3,
+                fillColor: '#fff',
+                fillOpacity: 1
+            }).addTo(map);
+        } else {
+            baseMarker.setLatLng([basepoint.latitude, basepoint.longitude]);
+        }
+        baseMarker.bindPopup(basePopup);
+
+        if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+        else map.setView(bounds[0], 14);
+    }
+
+    function saveBasepoint() {
+        const name = baseName.value.trim();
+        const point = validPoint(baseLatitude.value, baseLongitude.value);
+        if (!name || name.length > 100 || !point) {
+            basepointMessage.textContent = '地点名を入力し、緯度 -90〜90・経度 -180〜180 の数値を指定してください。';
+            basepointMessage.classList.add('is-error');
+            return false;
+        }
+
+        basepoint = { name, ...point };
+        try {
+            localStorage.setItem(storageKey, JSON.stringify(basepoint));
+            basepointMessage.textContent = `基準地点「${name}」を保存しました。距離順と地図を更新しました。`;
+        } catch (error) {
+            basepointMessage.textContent = 'このブラウザーでは保存できませんが、今回の検索には反映しました。';
+        }
+        basepointMessage.classList.remove('is-error');
+        drawMapAndSortResults();
+        return true;
+    }
+
+    document.getElementById('saveBasepoint').addEventListener('click', saveBasepoint);
+    document.getElementById('useCurrentLocation').addEventListener('click', function() {
+        if (!navigator.geolocation) {
+            basepointMessage.textContent = 'このブラウザーは現在地取得に対応していません。地点名と座標を手入力してください。';
+            basepointMessage.classList.add('is-error');
+            return;
+        }
+        const button = this;
+        button.disabled = true;
+        basepointMessage.textContent = '現在地を取得しています…';
+        basepointMessage.classList.remove('is-error');
+        navigator.geolocation.getCurrentPosition(position => {
+            baseName.value = '現在地';
+            baseLatitude.value = position.coords.latitude;
+            baseLongitude.value = position.coords.longitude;
+            saveBasepoint();
+            button.disabled = false;
+        }, error => {
+            const messages = {
+                1: '位置情報の利用が拒否されました。手入力で基準地点を設定できます。',
+                2: '現在地を取得できませんでした。手入力で基準地点を設定できます。',
+                3: '現在地の取得がタイムアウトしました。手入力で基準地点を設定できます。'
+            };
+            basepointMessage.textContent = messages[error.code] || '現在地を取得できませんでした。';
+            basepointMessage.classList.add('is-error');
+            button.disabled = false;
+        }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+    });
+
+    basepoint = readSavedBasepoint();
+    setBasepointInputs();
+
+    if (window.L) {
+        try {
+        map = L.map('shelterMap').setView([basepoint.latitude, basepoint.longitude], 13);
+            const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                referrerPolicy: 'strict-origin-when-cross-origin'
+            }).addTo(map);
+            let tileErrorShown = false;
+            tiles.on('tileerror', function() {
+                if (tileErrorShown) return;
+                tileErrorShown = true;
+              tileUnavailable = true;
+                mapMessage.textContent = '地図タイルを読み込めません。施設一覧は引き続き利用できます。';
+                mapMessage.classList.add('is-error');
+            });
+        } catch (error) {
+            mapMessage.textContent = '地図を初期化できません。施設一覧は引き続き利用できます。';
+            mapMessage.classList.add('is-error');
+        }
+    } else {
+        mapMessage.textContent = '地図を読み込めません。施設一覧は引き続き利用できます。';
+        mapMessage.classList.add('is-error');
+    }
+
+    drawMapAndSortResults();
+});
+</script>
 {% endblock %}

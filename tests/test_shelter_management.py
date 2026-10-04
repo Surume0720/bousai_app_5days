@@ -181,6 +181,7 @@ class ShelterManagementTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(app_module.shelters[0]["status"], "閉鎖")
+        self.assertEqual(app_module.shelters[0]["open_status"], "閉鎖")
 
     def test_shelter_json_api_returns_coordinates_and_status(self):
         response = self.client.get("/shelters")
@@ -191,14 +192,99 @@ class ShelterManagementTests(unittest.TestCase):
         self.assertEqual(shelter["longitude"], 140.7474)
         self.assertEqual(shelter["status"], "開設中")
 
-    def test_shelter_search_matches_name_and_address(self):
-        response = self.client.get("/search_results?q=青森市安方")
+    def test_shelter_search_matches_facility_name(self):
+        response = self.client.get("/search_results?q=既存避難所")
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("既存避難所", html)
         self.assertIn("青森市安方1丁目", html)
         self.assertIn("位置情報あり", html)
+
+    def test_search_form_restores_keyword_and_unknown_district(self):
+        response = self.client.get("/shelter_search?q=青森市&district=未登録地区")
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('value="青森市"', html)
+        self.assertIn('value="未登録地区" selected', html)
+
+    def test_search_form_has_only_requested_disaster_buttons_and_equipment(self):
+        response = self.client.get("/shelter_search")
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        for disaster_type in ("全件", "地震", "洪水", "津波", "土砂崩れ", "積雪", "台風", "火災"):
+            self.assertIn(disaster_type, html)
+        self.assertNotIn('value="高潮"', html)
+        self.assertNotIn('value="土砂災害"', html)
+        for equipment in ("ペット可", "バリアフリー", "車椅子対応", "高齢者対応", "家族対応", "外国人対応"):
+            self.assertIn(equipment, html)
+        for example in ("小学校", "体育館", "駅前"):
+            self.assertIn(example, html)
+
+    def test_search_filters_are_conjunctive_and_disaster_labels_are_exact(self):
+        app_module.shelters = [{
+            "id": 10,
+            "name": "East Community Shelter",
+            "district": "North",
+            "disaster_types": ["土砂災害", "地震"],
+            "equipment": ["ペット可", "バリアフリー"]
+        }, {
+            "id": 11,
+            "name": "East Gym",
+            "district": "North",
+            "disaster_types": ["土砂崩れ", "地震"],
+            "equipment": ["ペット可", "車椅子対応"]
+        }, {
+            "id": 12,
+            "name": "West Gym",
+            "district": "South",
+            "disaster_types": ["土砂崩れ"],
+            "equipment": ["ペット可", "車椅子対応"]
+        }, {
+            "id": 13,
+            "name": "Annex Shelter",
+            "district": "North",
+            "address": "East Gym Road",
+            "disaster_types": ["土砂崩れ"],
+            "equipment": ["ペット可", "車椅子対応"]
+        }]
+
+        query = {
+            "district": " North ",
+            "disaster_type": "土砂崩れ",
+            "q": " EAST ",
+            "equipment": ["ペット可", "車椅子対応"]
+        }
+        response = self.client.get("/search_results", query_string=query)
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("East Gym", html)
+        self.assertIn("災害 土砂崩れ", html)
+        self.assertIn("設備 ペット可・車椅子対応", html)
+        self.assertNotIn("East Community Shelter", html)
+        self.assertNotIn("West Gym", html)
+        self.assertNotIn("Annex Shelter", html)
+
+        api_response = self.client.get("/shelters", query_string=query)
+        self.assertEqual([item["id"] for item in api_response.get_json()], [11])
+
+        detail_response = self.client.get("/shelters/11", query_string=query)
+        detail_html = detail_response.get_data(as_text=True)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertIn("/search_results", detail_html)
+        self.assertIn("disaster_type=", detail_html)
+        self.assertIn("equipment=", detail_html)
+
+        exact_disaster_response = self.client.get(
+            "/shelters", query_string={"disaster_type": "土砂災害"}
+        )
+        self.assertEqual([item["id"] for item in exact_disaster_response.get_json()], [10])
+
+        all_regions = self.client.get("/shelters", query_string={"district": "全地域"})
+        self.assertEqual(len(all_regions.get_json()), 4)
 
     def test_search_results_include_map_and_base_point_controls(self):
         response = self.client.get("/search_results?q=既存避難所")
@@ -223,6 +309,43 @@ class ShelterManagementTests(unittest.TestCase):
         self.assertIn("開設中", html)
         self.assertIn("バリアフリー", html)
         self.assertIn("入口は北側です。", html)
+
+    def test_unknown_shelter_statuses_are_shown_neutrally(self):
+        app_module.shelters[0]["status"] = "未定義の開館値"
+        app_module.shelters[0]["crowd_status"] = "未定義の混雑値"
+        response = self.client.get("/shelters/1")
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("開館状況：状況未登録", html)
+        self.assertIn("混雑状況：未確認", html)
+
+    def test_empty_search_still_renders_map_and_search_navigation(self):
+        response = self.client.get("/search_results?q=存在しない施設")
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="shelterMap"', html)
+        self.assertIn("該当する避難所が見つかりませんでした", html)
+        self.assertIn("検索条件を変更", html)
+
+    def test_all_shelters_page_is_separate_and_shows_unregistered_fields(self):
+        app_module.shelters = [{"id": 50, "name": "施設情報の少ない避難所"}]
+        response = self.client.get("/all_shelters")
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("1施設を掲載", html)
+        self.assertIn("施設情報の少ない避難所", html)
+        self.assertIn("未登録", html)
+        self.assertNotIn('id="shelterMap"', html)
+
+    def test_all_shelters_page_has_zero_record_state(self):
+        app_module.shelters = []
+        response = self.client.get("/all_shelters")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("登録されている避難所はありません", response.get_data(as_text=True))
 
     def test_shelter_registration_still_requires_admin_login(self):
         response = app_module.app.test_client().get("/shelter_register")

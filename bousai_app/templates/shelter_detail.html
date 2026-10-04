@@ -103,7 +103,7 @@
   </dl>
 
   <nav class="shelter-detail-actions" aria-label="避難所詳細からの移動">
-    <a href="{{ url_for('search_results', q=request.args.get('q', ''), district=request.args.get('district', '')) }}">検索結果へ戻る</a>
+    <a href="{{ url_for('search_results', q=request.args.get('q', ''), district=request.args.get('district', ''), disaster_type=request.args.get('disaster_type', ''), equipment=request.args.getlist('equipment')) }}">検索結果へ戻る</a>
     <a href="{{ url_for('all_shelters') }}">避難所一覧</a>
     <a href="{{ url_for('index') }}#shelterMapSection">避難所マップ</a>
   </nav>

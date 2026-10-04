@@ -5,95 +5,242 @@
 {% block content %}
 <style>
 	.shelter-search-page {
-		width: min(100%, 760px);
+		width: min(100%, 1000px);
 		margin: 0 auto;
+		color: #273444;
 	}
 
 	.shelter-search-page h2 {
-		margin-top: 0;
+		margin: 0;
 		color: #193d68;
+		font-size: 26px;
 	}
 
-	.shelter-search-form {
+	.search-intro {
+		margin: 8px 0 22px;
+		color: #53667b;
+	}
+
+	.search-section {
+		margin-bottom: 22px;
+	}
+
+	.search-section h3 {
+		margin: 0 0 10px;
+		color: #243e5c;
+		font-size: 18px;
+	}
+
+	.disaster-button-grid {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(160px, 0.7fr) auto;
-		align-items: end;
-		gap: 12px;
-		padding: 22px;
-		border-top: 2px solid #284a70;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 10px;
+	}
+
+	.disaster-button {
+		min-height: 64px;
+		padding: 10px 12px;
+		border: 2px solid #2857a4;
+		border-radius: 5px;
 		background: #fff;
-	}
-
-	.shelter-search-field label {
-		display: block;
-		margin-bottom: 6px;
-		font-weight: 700;
-	}
-
-	.shelter-search-field input,
-	.shelter-search-field select {
-		width: 100%;
-		min-height: 42px;
-		padding: 8px 10px;
-		border: 1px solid #bdc9d6;
-		border-radius: 4px;
-		background: #fff;
-		color: #273444;
+		color: #2857a4;
 		font: inherit;
-	}
-
-	.shelter-search-form button {
-		min-height: 42px;
-		padding: 8px 16px;
-		border: 0;
-		border-radius: 4px;
-		background: #2857a4;
-		color: #fff;
-		font: inherit;
+		font-size: 17px;
 		font-weight: 700;
 		cursor: pointer;
 	}
 
-	.shelter-search-links {
-		display: flex;
-		gap: 16px;
-		margin-top: 18px;
+	.disaster-button:hover,
+	.disaster-button:focus-visible {
+		background: #edf4ff;
 	}
 
-	.shelter-search-links a {
-		color: #2857a4;
+	.disaster-button[aria-pressed="true"] {
+		background: #2857a4;
+		color: #fff;
+		box-shadow: inset 0 -5px 0 #173b70;
+	}
+
+	.search-filter-panel {
+		display: grid;
+		grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+		gap: 20px;
+		padding: 20px;
+		border-top: 2px solid #284a70;
+		background: #fff;
+	}
+
+	.search-field label,
+	.equipment-options legend {
+		display: block;
+		margin-bottom: 7px;
+		color: #30445d;
 		font-weight: 700;
 	}
 
-	@media (max-width: 650px) {
-		.shelter-search-form {
-			grid-template-columns: 1fr;
-			padding: 18px;
-		}
+	.search-field select,
+	.search-field input {
+		width: 100%;
+		min-height: 52px;
+		padding: 10px 12px;
+		border: 1px solid #9eafc1;
+		border-radius: 4px;
+		background: #fff;
+		color: #26364a;
+		font: inherit;
+	}
+
+	.field-help {
+		margin: 7px 0 0;
+		color: #5b6e82;
+		font-size: 14px;
+		line-height: 1.5;
+	}
+
+	.equipment-options {
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	.equipment-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 10px 14px;
+	}
+
+	.equipment-option {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		min-height: 40px;
+		font-weight: 600;
+	}
+
+	.equipment-option input {
+		flex: 0 0 auto;
+		width: 24px;
+		height: 24px;
+		accent-color: #2857a4;
+	}
+
+	.search-submit {
+		width: 100%;
+		min-height: 56px;
+		margin-top: 18px;
+		border: 0;
+		border-radius: 5px;
+		background: #2857a4;
+		color: #fff;
+		font: inherit;
+		font-size: 18px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.search-submit:hover,
+	.search-submit:focus-visible {
+		background: #1e447f;
+	}
+
+	.search-navigation {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		margin-top: 20px;
+	}
+
+	.search-navigation a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 48px;
+		color: #2857a4;
+		font-weight: 700;
+		text-underline-offset: 3px;
+	}
+
+	.disaster-button:focus-visible,
+	.equipment-option input:focus-visible,
+	.search-field input:focus-visible,
+	.search-field select:focus-visible {
+		outline: 3px solid #e3a21a;
+		outline-offset: 2px;
+	}
+
+	@media (max-width: 700px) {
+		.disaster-button-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.search-filter-panel { grid-template-columns: 1fr; padding: 16px; }
+		.equipment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.shelter-search-page h2 { font-size: 23px; }
 	}
 </style>
 
 <section class="shelter-search-page">
 	<h2>避難所検索</h2>
-	<p>避難所名・住所・地区から登録済み施設を探せます。</p>
+	<p class="search-intro">災害種別・地区・設備を組み合わせて避難所を検索できます。</p>
 
+	{% set selected_disaster = request.args.get('select_disaster') or request.args.get('disaster_type', '') %}
+	{% set selected_equipment = request.args.getlist('equipment') %}
 	<form class="shelter-search-form" action="{{ url_for('search_results') }}" method="get">
-		<div class="shelter-search-field">
-			<label for="shelterQuery">避難所名・住所</label>
-			<input id="shelterQuery" name="q" type="search" placeholder="施設名や住所を入力">
+		<input type="hidden" name="disaster_type" value="{{ selected_disaster }}">
+
+		<section class="search-section" aria-labelledby="disasterHeading">
+			<h3 id="disasterHeading">災害種別</h3>
+			<div class="disaster-button-grid">
+				<button class="disaster-button" type="submit" name="select_disaster" value="全件" aria-pressed="{{ 'true' if not selected_disaster or selected_disaster == '全件' else 'false' }}">全件</button>
+				{% for disaster_type in disaster_types %}
+					<button class="disaster-button" type="submit" name="select_disaster" value="{{ disaster_type }}" aria-pressed="{{ 'true' if selected_disaster == disaster_type else 'false' }}">{{ disaster_type }}</button>
+				{% endfor %}
+			</div>
+		</section>
+
+		<div class="search-filter-panel">
+			<div>
+				<div class="search-field">
+					<label for="district">地区</label>
+					<select id="district" name="district">
+						<option value="全地域" {% if not request.args.get('district') or request.args.get('district') == '全地域' %}selected{% endif %}>全地域</option>
+						{% for district in districts %}
+							<option value="{{ district }}" {% if request.args.get('district') == district %}selected{% endif %}>{{ district }}</option>
+						{% endfor %}
+					</select>
+					<p class="field-help">地区が分からない場合は「全地域」のまま検索してください。</p>
+				</div>
+
+				<div class="search-field" style="margin-top: 18px;">
+					<label for="shelterQuery">避難所名キーワード</label>
+					<input id="shelterQuery" name="q" type="search" value="{{ request.args.get('q', '') }}" placeholder="避難所名を入力">
+					<p class="field-help">施設名の一部で検索できます。例：小学校、体育館、駅前</p>
+				</div>
+			</div>
+
+			<fieldset class="equipment-options">
+				<legend>設備・利用者支援条件（複数選択可）</legend>
+				<div class="equipment-grid">
+					{% for equipment in equipment_options %}
+						<label class="equipment-option"><input type="checkbox" name="equipment" value="{{ equipment }}" {% if equipment in selected_equipment %}checked{% endif %}>{{ equipment }}</label>
+					{% endfor %}
+				</div>
+				<p class="field-help">複数選ぶと、選択したすべての条件に対応する施設だけを表示します。</p>
+			</fieldset>
 		</div>
-		<div class="shelter-search-field">
-			<label for="district">地区</label>
-			<select id="district" name="district">
-				<option value="">すべての地区</option>
-				{% for district in districts %}<option value="{{ district }}">{{ district }}</option>{% endfor %}
-			</select>
-		</div>
-		<button type="submit">検索</button>
+
+		<button class="search-submit" id="searchSubmit" type="submit">この条件で検索</button>
 	</form>
-	<div class="shelter-search-links">
-		<a href="{{ url_for('all_shelters') }}">全避難所一覧を見る</a>
+
+	<nav class="search-navigation" aria-label="避難所検索の関連ページ">
+		<a href="{{ url_for('all_shelters') }}">登録済み施設を全件見る</a>
+		<a href="{{ url_for('index') }}">トップページへ戻る</a>
 		{% if session.logged_in %}<a href="{{ url_for('shelter_register') }}">避難所を登録・管理</a>{% endif %}
-	</div>
+	</nav>
 </section>
+
+<script>
+	document.getElementById('shelterQuery').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			document.getElementById('searchSubmit').click();
+		}
+	});
+</script>
 {% endblock %}
