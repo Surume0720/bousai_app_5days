@@ -1,12 +1,85 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>検索結果</h2>
+<style>
+  .shelter-results {
+    width: min(100%, 1040px);
+    margin: 0 auto;
+  }
+
+  .shelter-results h2 {
+    margin-top: 0;
+    color: #193d68;
+  }
+
+  .shelter-results-list {
+    display: grid;
+    gap: 12px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .shelter-result {
+    padding: 16px;
+    border-top: 2px solid #dce3eb;
+    background: #fff;
+  }
+
+  .shelter-result h3 {
+    margin: 0;
+    color: #243e5c;
+  }
+
+  .shelter-result p {
+    margin: 8px 0 0;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+
+  .shelter-result-meta {
+    color: #64758a;
+    font-size: 14px;
+  }
+
+  .shelter-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .shelter-result-actions a {
+    color: #2857a4;
+    font-weight: 700;
+  }
+</style>
+
+<section class="shelter-results">
+<h2>避難所一覧</h2>
+{% if query or district %}<p>検索条件：{{ query or '施設名・住所なし' }}{% if district %}／{{ district }}{% endif %}</p>{% endif %}
 
 {% if results %}
-  <ul>
+  <p>{{ results|length }}施設</p>
+  <ul class="shelter-results-list">
     {% for shelter in results %}
-    <li>{{ shelter.name }}</li>
+    {% set status = shelter.get('status', '状況未登録') %}
+    <li class="shelter-result">
+      <h3>{{ shelter.get('name', '名称未登録') }}</h3>
+      <p><strong>開設状況：</strong>{{ status }}</p>
+      <p><strong>住所：</strong>{{ shelter.get('address') or '未登録' }}</p>
+      <p class="shelter-result-meta"><strong>収容人数：</strong>{% if shelter.get('capacity') %}{{ shelter.capacity }}人{% else %}未登録{% endif %}</p>
+      {% if shelter.get('hazards') %}<p><strong>対応できる災害：</strong>{{ shelter.hazards|join('、') }}</p>{% endif %}
+      {% if shelter.get('facilities') %}<p><strong>設備・受け入れ条件：</strong>{{ shelter.facilities|join('、') }}</p>{% endif %}
+      {% if shelter.get('latitude') is not none and shelter.get('longitude') is not none %}
+        <p class="shelter-result-meta">地図上の位置情報あり</p>
+      {% else %}
+        <p class="shelter-result-meta">地図上の位置情報は未登録です</p>
+      {% endif %}
+      <div class="shelter-result-actions">
+        <a href="{{ url_for('index') }}#shelterMapSection">避難所マップを見る</a>
+        {% if session.logged_in and shelter.get('id') is not none %}<a href="{{ url_for('shelter_register', edit=shelter.get('id')) }}">施設情報を編集</a>{% endif %}
+      </div>
+    </li>
     {% endfor %}
   </ul>
 {% else %}
@@ -17,4 +90,5 @@
   <a href="/shelter_search">検索画面に戻る</a> |
   <a href="/">トップページへ戻る</a>
 </p>
+</section>
 {% endblock %}

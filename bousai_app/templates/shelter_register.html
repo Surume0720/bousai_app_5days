@@ -1,23 +1,593 @@
 {% extends "base.html" %}
 
+{% block title %}避難所登録・管理 - 防災アプリ{% endblock %}
+
 {% block content %}
-<h2>避難所登録</h2>
-<p>新しい避難所情報を登録します。</p>
+<style>
+  .shelter-management {
+    width: min(100%, 1280px);
+    margin: 0 auto;
+    color: #273444;
+  }
 
-<!-- 成功・エラーメッセージ表示 -->
-{% if success %}
-  <p>{{ message }}</p>
-{% endif %}
+  .shelter-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
 
-{% if error %}
-  <p>{{ message }}</p>
-{% endif %}
+  .shelter-header h2 {
+    margin: 0;
+    color: #193d68;
+    font-size: 26px;
+  }
 
-<form method="POST">
-  <p>
-    <label for="name">避難所名（必須）</label><br>
-    <input type="text" id="name" name="name">
-  </p>
-  <p><button type="submit">登録</button></p>
-</form>
+  .shelter-header p {
+    margin: 6px 0 0;
+    color: #64758a;
+  }
+
+  .shelter-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.5fr);
+    gap: 32px;
+    align-items: start;
+  }
+
+  .shelter-form-section {
+    padding-right: 28px;
+    border-right: 1px solid #dce3eb;
+  }
+
+  .shelter-section-heading {
+    margin: 0 0 18px;
+    color: #193d68;
+    font-size: 20px;
+  }
+
+  .shelter-field {
+    margin-bottom: 16px;
+  }
+
+  .shelter-field > label,
+  .shelter-field legend {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .shelter-field input[type="text"],
+  .shelter-field input[type="number"],
+  .shelter-field select {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 10px;
+    border: 1px solid #bdc9d6;
+    border-radius: 4px;
+    background: #fff;
+    color: #26364a;
+    font: inherit;
+  }
+
+  .address-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .address-search-button,
+  .shelter-primary-button,
+  .shelter-secondary-button,
+  .shelter-status-form button {
+    min-height: 40px;
+    padding: 8px 13px;
+    border: 1px solid #2857a4;
+    border-radius: 4px;
+    background: #2857a4;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .address-search-button:hover,
+  .shelter-primary-button:hover,
+  .shelter-status-form button:hover {
+    background: #1e447f;
+  }
+
+  .shelter-secondary-button {
+    border-color: #bdc9d6;
+    background: #fff;
+    color: #30445d;
+    text-decoration: none;
+  }
+
+  .shelter-secondary-button:hover {
+    background: #f1f5f9;
+  }
+
+  .address-status,
+  .form-hint,
+  .location-status {
+    margin: 7px 0 0;
+    color: #66778a;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .address-status.is-error,
+  .form-error {
+    color: #9f3025;
+  }
+
+  .location-status.is-selected {
+    color: #23613a;
+    font-weight: 700;
+  }
+
+  .address-candidates {
+    display: grid;
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .candidate-button {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    background: #fff;
+    color: #273444;
+    text-align: left;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+
+  .candidate-button:hover,
+  .candidate-button:focus-visible {
+    border-color: #2857a4;
+    background: #edf4ff;
+  }
+
+  .choice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .choice-grid legend {
+    grid-column: 1 / -1;
+    padding: 0;
+  }
+
+  .choice-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.45;
+  }
+
+  .choice-option input {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin: 1px 0 0;
+    accent-color: #2857a4;
+  }
+
+  .shelter-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 20px;
+  }
+
+  .shelter-message {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border-left: 4px solid #27804b;
+    background: #eaf6ee;
+    color: #205d39;
+  }
+
+  .shelter-message.is-error {
+    border-color: #c43d34;
+    background: #fff0ee;
+    color: #8e2924;
+  }
+
+  .shelter-list-section {
+    min-width: 0;
+  }
+
+  .shelter-list-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .shelter-list-heading .shelter-section-heading {
+    margin: 0;
+  }
+
+  .shelter-count {
+    color: #66778a;
+    font-size: 13px;
+  }
+
+  .shelter-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .shelter-item {
+    padding: 16px;
+    border-top: 2px solid #dce3eb;
+    background: #fff;
+  }
+
+  .shelter-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .shelter-item h4 {
+    margin: 0;
+    color: #243e5c;
+    font-size: 17px;
+    overflow-wrap: anywhere;
+  }
+
+  .shelter-status-badge {
+    display: inline-block;
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    border-radius: 3px;
+    background: #edf1f5;
+    color: #53667b;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .shelter-status-open { background: #e5f4e9; color: #23613a; }
+  .shelter-status-preopen { background: #fff1cf; color: #76520a; }
+  .shelter-status-closed { background: #e8edf2; color: #546477; }
+
+  .shelter-item-address {
+    margin: 8px 0 0;
+    color: #52667b;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .shelter-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 9px;
+    color: #66778a;
+    font-size: 13px;
+  }
+
+  .shelter-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .shelter-tag {
+    padding: 3px 7px;
+    border-radius: 3px;
+    background: #edf2f7;
+    color: #40566e;
+    font-size: 12px;
+  }
+
+  .shelter-item-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #e5eaf0;
+  }
+
+  .shelter-edit-link {
+    color: #2857a4;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .shelter-status-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .shelter-status-form select {
+    min-height: 36px;
+    max-width: 150px;
+    padding: 5px 7px;
+    border: 1px solid #bdc9d6;
+    border-radius: 4px;
+    background: #fff;
+    font: inherit;
+  }
+
+  .shelter-status-form button {
+    min-height: 36px;
+    padding: 5px 9px;
+    font-size: 13px;
+  }
+
+  .shelter-empty-state {
+    padding: 28px 14px;
+    border-top: 2px solid #dce3eb;
+    background: #fff;
+    color: #66778a;
+    text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    .shelter-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .shelter-form-section {
+      padding: 0 0 24px;
+      border-right: 0;
+      border-bottom: 1px solid #dce3eb;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .shelter-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .shelter-header h2 {
+      font-size: 22px;
+    }
+
+    .choice-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .shelter-item-actions {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .shelter-status-form {
+      width: 100%;
+    }
+
+    .shelter-status-form select {
+      flex: 1;
+      max-width: none;
+    }
+  }
+</style>
+
+<section class="shelter-management">
+  <header class="shelter-header">
+    <div>
+      <h2>避難所登録・管理</h2>
+      <p>避難所情報と開設状況を管理します。</p>
+    </div>
+    <a class="shelter-secondary-button" href="{{ url_for('all_shelters') }}">住民向け一覧を見る</a>
+  </header>
+
+  {% if error_message %}
+    <div class="shelter-message is-error" role="alert">{{ error_message }}</div>
+  {% elif notice == 'created' %}
+    <div class="shelter-message" role="status">避難所が登録されました。</div>
+  {% elif notice == 'updated' %}
+    <div class="shelter-message" role="status">避難所情報を更新しました。</div>
+  {% elif notice == 'status_updated' %}
+    <div class="shelter-message" role="status">開設状況を更新しました。</div>
+  {% endif %}
+
+  <div class="shelter-layout">
+    <section class="shelter-form-section" aria-labelledby="shelterFormHeading">
+      <h3 class="shelter-section-heading" id="shelterFormHeading">{% if editing_shelter %}避難所情報を編集{% else %}新しい避難所を登録{% endif %}</h3>
+      <form id="shelterForm" method="post" action="{{ url_for('shelter_register') }}">
+        <input type="hidden" name="action" value="{{ 'update' if editing_shelter else 'create' }}">
+        {% if editing_shelter %}<input type="hidden" name="shelter_id" value="{{ editing_shelter.get('id', '') }}">{% endif %}
+        <input type="hidden" name="location_token" id="locationToken" value="{{ form_values.location_token }}">
+
+        <div class="shelter-field">
+          <label for="shelterName">避難所名（必須）</label>
+          <input id="shelterName" name="name" type="text" maxlength="120" required value="{{ form_values.name }}">
+        </div>
+
+        <div class="shelter-field">
+          <label for="shelterAddress">住所（必須）</label>
+          <div class="address-search-row">
+            <input id="shelterAddress" name="address" type="text" maxlength="250" required value="{{ form_values.address }}" data-original-address="{{ editing_shelter.get('address', '') if editing_shelter else '' }}" autocomplete="street-address">
+            <button class="address-search-button" id="searchAddress" type="button">住所検索</button>
+          </div>
+          <p class="form-hint">候補を検索し、該当する住所を選択してください。住所を変更した場合は再検索が必要です。</p>
+          <p class="address-status" id="addressStatus" role="status" aria-live="polite">{% if editing_shelter and editing_shelter.get('latitude') is not none and editing_shelter.get('longitude') is not none %}登録済みの位置情報を使用します。住所を変更した場合は検索し直してください。{% endif %}</p>
+          <div class="address-candidates" id="addressCandidates"></div>
+        </div>
+
+        <div class="shelter-field">
+          <label for="shelterStatus">開設状況</label>
+          <select id="shelterStatus" name="status" required>
+            {% for status in shelter_statuses %}
+              <option value="{{ status }}" {% if form_values.status == status %}selected{% endif %}>{{ status }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="shelter-field">
+          <label for="shelterCrowdStatus">混雑状況</label>
+          <select id="shelterCrowdStatus" name="crowd_status" required>
+            {% for status in crowd_statuses %}
+              <option value="{{ status }}" {% if form_values.crowd_status == status %}selected{% endif %}>{{ status }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="shelter-field">
+          <label for="shelterCapacity">収容人数（任意）</label>
+          <input id="shelterCapacity" name="capacity" type="number" min="1" step="1" value="{{ form_values.capacity }}" inputmode="numeric">
+        </div>
+
+        <fieldset class="shelter-field choice-grid">
+          <legend>対応できる災害</legend>
+          {% for hazard in hazard_options %}
+            <label class="choice-option"><input type="checkbox" name="hazards" value="{{ hazard }}" {% if hazard in form_values.hazards %}checked{% endif %}>{{ hazard }}</label>
+          {% endfor %}
+        </fieldset>
+
+        <fieldset class="shelter-field choice-grid">
+          <legend>設備・受け入れ条件</legend>
+          {% for facility in facility_options %}
+            <label class="choice-option"><input type="checkbox" name="facilities" value="{{ facility }}" {% if facility in form_values.facilities %}checked{% endif %}>{{ facility }}</label>
+          {% endfor %}
+        </fieldset>
+
+        <div class="shelter-field">
+          <label for="shelterNote">備考</label>
+          <textarea id="shelterNote" name="note" maxlength="1000" rows="3">{{ form_values.note }}</textarea>
+        </div>
+
+        <button class="shelter-primary-button" type="submit">{% if editing_shelter %}変更を保存{% else %}避難所を登録{% endif %}</button>
+        {% if editing_shelter %}<a class="shelter-secondary-button" href="{{ url_for('shelter_register') }}">編集をキャンセル</a>{% endif %}
+      </form>
+    </section>
+
+    <section class="shelter-list-section" aria-labelledby="shelterListHeading">
+      <div class="shelter-list-heading">
+        <h3 class="shelter-section-heading" id="shelterListHeading">登録済み避難所</h3>
+        <span class="shelter-count">{{ shelters|length }}施設</span>
+      </div>
+
+      {% if shelters %}
+        <div class="shelter-list">
+          {% for shelter in shelters %}
+            {% set status = shelter.display_open_status %}
+            <article class="shelter-item">
+              <div class="shelter-item-header">
+                <h4>{{ shelter.get('name', '名称未登録') }}</h4>
+                <span class="shelter-status-badge {% if status == '開設中' %}shelter-status-open{% elif status == '開設前' %}shelter-status-preopen{% elif status == '閉鎖' %}shelter-status-closed{% endif %}">{{ status }}</span>
+              </div>
+              <p class="shelter-item-address">{{ shelter.get('address') or '住所未登録' }}</p>
+              <div class="shelter-item-meta">
+                <span>混雑状況：{{ shelter.display_crowd_status }}</span>
+                <span>収容人数：{% if shelter.get('capacity') %}{{ shelter.capacity }}人{% else %}未登録{% endif %}</span>
+                <span>位置情報：{% if shelter.get('latitude') is not none and shelter.get('longitude') is not none %}登録済み{% else %}未登録{% endif %}</span>
+              </div>
+              {% if shelter.get('hazards') %}<div class="shelter-tags" aria-label="対応できる災害">{% for hazard in shelter.hazards %}<span class="shelter-tag">{{ hazard }}</span>{% endfor %}</div>{% endif %}
+              {% if shelter.display_facilities %}<div class="shelter-tags" aria-label="設備・受け入れ条件">{% for facility in shelter.display_facilities %}<span class="shelter-tag">{{ facility }}</span>{% endfor %}</div>{% endif %}
+              {% if shelter.get('note') %}<p class="shelter-item-address">備考：{{ shelter.note }}</p>{% endif %}
+              <div class="shelter-item-actions">
+                <a class="shelter-edit-link" href="{{ url_for('shelter_register', edit=shelter.get('id', '')) }}">情報を編集</a>
+                <form class="shelter-status-form" method="post" action="{{ url_for('shelter_register') }}">
+                  <input type="hidden" name="action" value="update_status">
+                  <input type="hidden" name="shelter_id" value="{{ shelter.get('id', '') }}">
+                  <label class="sr-only" for="status-{{ loop.index }}">{{ shelter.get('name', '避難所') }}の開設状況</label>
+                  <select id="status-{{ loop.index }}" name="status">
+                    {% for option in shelter_statuses %}<option value="{{ option }}" {% if option == status %}selected{% endif %}>{{ option }}</option>{% endfor %}
+                  </select>
+                  <button type="submit">状況更新</button>
+                </form>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="shelter-empty-state">避難所はまだ登録されていません。</div>
+      {% endif %}
+    </section>
+  </div>
+</section>
+
+<script>
+  const shelterAddress = document.getElementById('shelterAddress');
+  const locationToken = document.getElementById('locationToken');
+  const addressStatus = document.getElementById('addressStatus');
+  const addressCandidates = document.getElementById('addressCandidates');
+  const searchAddressButton = document.getElementById('searchAddress');
+
+  shelterAddress.addEventListener('input', function() {
+    locationToken.value = '';
+    addressCandidates.replaceChildren();
+    const originalAddress = shelterAddress.dataset.originalAddress;
+    if (shelterAddress.value.trim() === originalAddress && originalAddress) {
+      addressStatus.textContent = '登録済みの位置情報を使用します。';
+      addressStatus.classList.remove('is-error');
+      addressStatus.classList.add('is-selected');
+    } else {
+      addressStatus.textContent = '住所を変更した場合は、検索候補を選び直してください。';
+      addressStatus.classList.remove('is-selected');
+    }
+  });
+
+  searchAddressButton.addEventListener('click', async function() {
+    const query = shelterAddress.value.trim();
+    addressCandidates.replaceChildren();
+    addressStatus.classList.remove('is-selected');
+    if (query.length < 2) {
+      addressStatus.textContent = '住所を2文字以上入力してください。';
+      addressStatus.classList.add('is-error');
+      return;
+    }
+
+    searchAddressButton.disabled = true;
+    addressStatus.textContent = '住所候補を検索しています…';
+    addressStatus.classList.remove('is-error');
+    try {
+      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || '住所検索に失敗しました。');
+      }
+      if (!data.results.length) {
+        addressStatus.textContent = '住所候補が見つかりませんでした。住所を確認してください。';
+        return;
+      }
+
+      addressStatus.textContent = '該当する住所候補を選択してください。';
+      data.results.forEach(function(candidate) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'candidate-button';
+        button.textContent = candidate.address;
+        button.addEventListener('click', function() {
+          shelterAddress.value = candidate.address;
+          shelterAddress.dataset.originalAddress = '';
+          locationToken.value = candidate.token;
+          addressCandidates.replaceChildren();
+          addressStatus.textContent = `選択済み: ${candidate.address}`;
+          addressStatus.classList.remove('is-error');
+          addressStatus.classList.add('is-selected');
+        });
+        addressCandidates.append(button);
+      });
+    } catch (error) {
+      addressStatus.textContent = error.message;
+      addressStatus.classList.add('is-error');
+    } finally {
+      searchAddressButton.disabled = false;
+    }
+  });
+</script>
 {% endblock %}

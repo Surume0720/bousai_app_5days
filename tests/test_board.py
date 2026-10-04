@@ -47,6 +47,7 @@ class InstructionBoardTests(unittest.TestCase):
         response = self.client.post("/board", data={
             "action": "create",
             "target": "消防",
+            "information_type": "避難情報",
             "district": "A地区",
             "content": "河川の状況を確認してください",
             "shelter": "",
@@ -58,6 +59,7 @@ class InstructionBoardTests(unittest.TestCase):
         with open(app_module.INSTRUCTIONS_FILE, encoding="utf-8") as file:
             saved = json.load(file)
         self.assertEqual(saved[0]["target"], "消防")
+        self.assertEqual(saved[0]["information_type"], "避難情報")
         self.assertEqual(saved[0]["district"], "A地区")
         self.assertEqual(saved[0]["urgency"], "高")
         self.assertEqual(saved[0]["status"], "発令中")
@@ -93,14 +95,17 @@ class InstructionBoardTests(unittest.TestCase):
         self.assertIn("対応状況を更新しました", response.get_data(as_text=True))
         self.assertEqual(app_module.instructions[0]["status"], "対応中")
 
-    def test_home_shows_active_resident_notice_but_hides_released_notice(self):
+    def test_home_renders_disaster_information_feed(self):
         response = self.client.get("/")
         html = response.get_data(as_text=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("川の近くから避難してください", html)
-        self.assertNotIn("解除済みのお知らせ", html)
-        self.assertIn("青森小学校", html)
+        self.assertIn('id="disasterInfo"', html)
+        self.assertIn('id="informationList"', html)
+        self.assertIn("/api/disaster_information", html)
+        self.assertIn('aria-current="page"', html)
+        self.assertIn('href="#shelterMapSection"', html)
+        self.assertIn('navigator.geolocation.getCurrentPosition', html)
 
     def test_board_lists_internal_and_resident_instructions(self):
         response = self.client.get("/board")

@@ -455,6 +455,14 @@
             {% endfor %}
           </select>
         </div>
+        <div class="form-field">
+          <label for="informationType">情報の種別</label>
+          <select id="informationType" name="information_type" required>
+            {% for information_type in information_types %}
+              <option value="{{ information_type }}">{{ information_type }}</option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="two-fields">
           <div class="form-field">
             <label for="district">対象地区</label>
@@ -506,6 +514,7 @@
             <tr>
               <th scope="col">緊急度</th>
               <th scope="col">発信先・地区</th>
+              <th scope="col">種別</th>
               <th scope="col">指示・発信内容</th>
               <th scope="col">発信日時</th>
               <th scope="col">対応状況</th>
@@ -526,6 +535,7 @@
                   <strong>{{ inst.get('target', '未設定') }}</strong>
                   {% if inst.get('district') %}<div class="instruction-meta">{{ inst.district }}</div>{% endif %}
                 </td>
+                <td>{{ inst.get('information_type', '避難情報' if inst.get('shelter') else 'お知らせ') }}</td>
                 <td class="instruction-content">
                   <strong>{{ inst.get('content', '') }}</strong>
                   {% if inst.get('shelter') %}<div class="instruction-meta">避難先：{{ inst.shelter }}</div>{% endif %}

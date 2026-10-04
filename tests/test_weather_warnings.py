@@ -38,6 +38,30 @@ class ParseAreaWarningsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "青森市の警報・注意報データが見つかりません"):
             parse_area_warnings(warning_data)
 
+    def test_newest_city_report_replaces_older_active_warning(self):
+        warning_data = [{
+            "reportDatetime": "2026-10-04T00:00:00+09:00",
+            "warning": {
+                "class20Items": [{
+                    "areaCode": AREA_CODE,
+                    "kinds": [{"code": "15", "status": "継続"}]
+                }]
+            }
+        }, {
+            "reportDatetime": "2026-10-04T02:00:00+09:00",
+            "warning": {
+                "class20Items": [{
+                    "areaCode": AREA_CODE,
+                    "kinds": [{"status": "発表警報・注意報はなし"}]
+                }]
+            }
+        }]
+
+        warnings, report_datetime = parse_area_warnings(warning_data)
+
+        self.assertEqual(warnings, [])
+        self.assertEqual(report_datetime, "2026-10-04T02:00:00+09:00")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,8 +1,99 @@
 {% extends "base.html" %}
 
-{% block content %}
-<h2>避難所検索</h2>
-<p>登録されている避難所を確認できます。</p>
+{% block title %}避難所検索 - 防災アプリ{% endblock %}
 
-<p><a href="/all_shelters">全施設一覧</a></p>
+{% block content %}
+<style>
+	.shelter-search-page {
+		width: min(100%, 760px);
+		margin: 0 auto;
+	}
+
+	.shelter-search-page h2 {
+		margin-top: 0;
+		color: #193d68;
+	}
+
+	.shelter-search-form {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(160px, 0.7fr) auto;
+		align-items: end;
+		gap: 12px;
+		padding: 22px;
+		border-top: 2px solid #284a70;
+		background: #fff;
+	}
+
+	.shelter-search-field label {
+		display: block;
+		margin-bottom: 6px;
+		font-weight: 700;
+	}
+
+	.shelter-search-field input,
+	.shelter-search-field select {
+		width: 100%;
+		min-height: 42px;
+		padding: 8px 10px;
+		border: 1px solid #bdc9d6;
+		border-radius: 4px;
+		background: #fff;
+		color: #273444;
+		font: inherit;
+	}
+
+	.shelter-search-form button {
+		min-height: 42px;
+		padding: 8px 16px;
+		border: 0;
+		border-radius: 4px;
+		background: #2857a4;
+		color: #fff;
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.shelter-search-links {
+		display: flex;
+		gap: 16px;
+		margin-top: 18px;
+	}
+
+	.shelter-search-links a {
+		color: #2857a4;
+		font-weight: 700;
+	}
+
+	@media (max-width: 650px) {
+		.shelter-search-form {
+			grid-template-columns: 1fr;
+			padding: 18px;
+		}
+	}
+</style>
+
+<section class="shelter-search-page">
+	<h2>避難所検索</h2>
+	<p>避難所名・住所・地区から登録済み施設を探せます。</p>
+
+	<form class="shelter-search-form" action="{{ url_for('search_results') }}" method="get">
+		<div class="shelter-search-field">
+			<label for="shelterQuery">避難所名・住所</label>
+			<input id="shelterQuery" name="q" type="search" placeholder="施設名や住所を入力">
+		</div>
+		<div class="shelter-search-field">
+			<label for="district">地区</label>
+			<select id="district" name="district">
+				<option value="">すべての地区</option>
+				{% for district in districts %}<option value="{{ district }}">{{ district }}</option>{% endfor %}
+			</select>
+		</div>
+		<button type="submit">検索</button>
+	</form>
+	<div class="shelter-search-links">
+		<a href="{{ url_for('all_shelters') }}">全避難所一覧を見る</a>
+		{% if session.logged_in %}<a href="{{ url_for('shelter_register') }}">避難所を登録・管理</a>{% endif %}
+	</div>
+</section>
 {% endblock %}

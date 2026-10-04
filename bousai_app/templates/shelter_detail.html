@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}{{ shelter.get('name', '避難所詳細') }} - 防災アプリ{% endblock %}
+
+{% block content %}
+<style>
+  .shelter-detail-page {
+    width: min(100%, 820px);
+    margin: 0 auto;
+  }
+
+  .shelter-detail-page h2 {
+    margin: 0;
+    color: #193d68;
+    font-size: 26px;
+    overflow-wrap: anywhere;
+  }
+
+  .shelter-detail-statuses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0 22px;
+  }
+
+  .detail-status {
+    padding: 6px 10px;
+    border-radius: 3px;
+    background: #edf1f5;
+    color: #40566e;
+    font-weight: 700;
+  }
+
+  .detail-status.is-open { background: #e5f4e9; color: #23613a; }
+  .detail-status.is-preopen { background: #fff1cf; color: #76520a; }
+  .detail-status.is-closed { background: #e8edf2; color: #546477; }
+  .detail-status.is-crowded { background: #fce5df; color: #9f3025; }
+  .detail-status.is-available { background: #e7f0fb; color: #2857a4; }
+
+  .shelter-detail-list {
+    margin: 0;
+    border-top: 2px solid #284a70;
+    background: #fff;
+  }
+
+  .shelter-detail-row {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 18px;
+    padding: 16px 18px;
+    border-bottom: 1px solid #dce3eb;
+  }
+
+  .shelter-detail-row dt {
+    color: #53667b;
+    font-weight: 700;
+  }
+
+  .shelter-detail-row dd {
+    margin: 0;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .shelter-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    margin-top: 22px;
+  }
+
+  .shelter-detail-actions a {
+    color: #2857a4;
+    font-weight: 700;
+  }
+
+  @media (max-width: 600px) {
+    .shelter-detail-page h2 { font-size: 22px; }
+    .shelter-detail-row {
+      grid-template-columns: 1fr;
+      gap: 5px;
+      padding: 13px 14px;
+    }
+  }
+</style>
+
+<section class="shelter-detail-page">
+  <h2>{{ shelter.get('name', '名称未登録') }}</h2>
+  <div class="shelter-detail-statuses" aria-label="施設の状況">
+    <span class="detail-status {% if shelter.display_open_status == '開設中' %}is-open{% elif shelter.display_open_status == '開設前' %}is-preopen{% elif shelter.display_open_status == '閉鎖' %}is-closed{% endif %}">開館状況：{{ shelter.display_open_status }}</span>
+    <span class="detail-status {% if shelter.display_crowd_status == '混雑' %}is-crowded{% elif shelter.display_crowd_status == '空きあり' %}is-available{% endif %}">混雑状況：{{ shelter.display_crowd_status }}</span>
+  </div>
+
+  <dl class="shelter-detail-list">
+    <div class="shelter-detail-row"><dt>住所</dt><dd>{{ shelter.get('address') or '未登録' }}</dd></div>
+    <div class="shelter-detail-row"><dt>地区</dt><dd>{{ shelter.get('district') or '未登録' }}</dd></div>
+    <div class="shelter-detail-row"><dt>収容人数</dt><dd>{% if shelter.get('capacity') %}{{ shelter.capacity }}人{% else %}未登録{% endif %}</dd></div>
+    <div class="shelter-detail-row"><dt>対応できる災害</dt><dd>{% if shelter.get('hazards') %}{{ shelter.hazards|join('、') }}{% else %}未登録{% endif %}</dd></div>
+    <div class="shelter-detail-row"><dt>設備・受け入れ条件</dt><dd>{% if shelter.display_facilities %}{{ shelter.display_facilities|join('、') }}{% else %}未登録{% endif %}</dd></div>
+    <div class="shelter-detail-row"><dt>備考</dt><dd>{{ shelter.get('note') or 'なし' }}</dd></div>
+    <div class="shelter-detail-row"><dt>地図上の位置</dt><dd>{% if coordinates %}登録済み{% else %}位置情報未確認{% endif %}</dd></div>
+  </dl>
+
+  <nav class="shelter-detail-actions" aria-label="避難所詳細からの移動">
+    <a href="{{ url_for('search_results', q=request.args.get('q', ''), district=request.args.get('district', '')) }}">検索結果へ戻る</a>
+    <a href="{{ url_for('all_shelters') }}">避難所一覧</a>
+    <a href="{{ url_for('index') }}#shelterMapSection">避難所マップ</a>
+  </nav>
+</section>
+{% endblock %}
